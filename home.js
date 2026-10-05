@@ -11,7 +11,7 @@ function renderServices(){
   const el = document.getElementById('servicesGrid');
   if(!el) return;
   el.innerHTML = SERVICES.map(s =>
-    '<div class="card"><div class="ic">' + s.icon + '</div><h3>' + esc(s.title) + '</h3><p>' + esc(s.desc) + '</p></div>'
+    '<div class="card" data-track="service" data-expertise="' + esc(s.title) + '"><div class="ic">' + s.icon + '</div><h3>' + esc(s.title) + '</h3><p>' + esc(s.desc) + '</p></div>'
   ).join('');
 }
 
@@ -92,7 +92,7 @@ function applyWorkFilter(){
   }
   el.innerHTML = pageList.map(p => {
     const stacks = postStacks(p).filter(s => s !== p.category);
-    const stackHTML = stacks.slice(0, 3).map(s => '<span class="schip">' + esc(s) + '</span>').join('') +
+    const stackHTML = stacks.slice(0, 3).map(s => '<span class="schip" data-track="stack" data-expertise="' + esc(s) + '">' + esc(s) + '</span>').join('') +
       (stacks.length > 3 ? '<span class="schip more">+' + (stacks.length - 3) + '</span>' : '');
     return '<a class="work" href="' + esc(p.url || '#') + '" target="_blank" rel="noopener">' +
       '<div class="thumb"><img src="' + esc(p.image || '') + '" alt="" loading="lazy" onerror="this.style.display=\'none\'"></div>' +
@@ -230,3 +230,4 @@ renderServices();
 renderWork();
 renderClients();
 renderReviews();
+initTracking();

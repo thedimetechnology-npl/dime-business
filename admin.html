@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
-<title>Brief Inbox — The Dime Technology</title>
-<link rel="icon" href="logo.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Brief Inbox — The Dime Technology</title>
+  <link rel="icon" href="logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
 
@@ -30,42 +30,150 @@
 
 <!-- app -->
 <div id="appView" style="display:none">
-  <nav class="nav">
-    <div class="nav-in">
-      <a class="brand" href="index.html">
+  <div class="shell">
+    <aside class="side">
+      <a class="side-brand" href="index.html">
         <img src="logo.png" alt="The Dime Technology">
-        <div>Brief Inbox<small id="whoami">signed in</small></div>
+        <div>The Dime Technology<small>Business</small></div>
       </a>
-      <div class="nav-links">
-        <a href="index.html">Agency profile</a>
-        <a href="brief.html">Open form</a>
+      <nav class="side-nav">
+        <a class="on" data-view="dashboard"><span class="si">▦</span>Dashboard</a>
+        <a data-view="campaigns"><span class="si">◎</span>Campaigns</a>
+        <a data-view="reporting"><span class="si">◫</span>Reporting</a>
+      </nav>
+      <div class="side-foot">
+        <div class="credits">
+          <b>200 credits</b>
+          <span>Next expiration: 200 credits on October 5, 2027</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="logout()">Log out</button>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="logout()">Log out</button>
+    </aside>
+
+    <main class="main">
+
+      <!-- ══ Dashboard (brief inbox) ══ -->
+      <section class="view on" id="view-dashboard">
+        <div class="dash">
+          <div class="dash-head">
+            <h1>Project briefs</h1>
+            <span style="font-size:12.5px;color:var(--dim)" id="syncedAt"></span>
+            <div class="spacer"></div>
+            <button class="btn btn-ghost btn-sm" onclick="loadList(true)">↻ Refresh</button>
+          </div>
+
+          <div class="minis">
+            <div class="mini"><b id="mTotal">0</b><span>Total briefs</span></div>
+            <div class="mini"><b id="mNew">0</b><span>New</span></div>
+            <div class="mini"><b id="mProg">0</b><span>In progress</span></div>
+            <div class="mini"><b id="mWon">0</b><span>Won</span></div>
+          </div>
+
+          <div class="tabs" id="tabs"></div>
+
+          <div class="searchbar">
+            <input class="inp" id="q" placeholder="Search — company, person, email, service…" oninput="renderList()">
+          </div>
+
+          <div class="list" id="list"></div>
+        </div>
+      </section>
+
+      <!-- ══ Campaigns ══ -->
+      <section class="view" id="view-campaigns">
+        <div class="page-head">
+          <div>
+            <h1>Manage your campaigns</h1>
+            <p class="page-sub">Launch campaigns, get visible to customers and convert them to clients</p>
+          </div>
+          <button class="btn btn-primary btn-sm" id="newCampaignBtn">+ Start new campaign</button>
+        </div>
+        <div class="period">Current period: <b id="periodLabel"></b></div>
+        <div class="tabs" id="campTabs"></div>
+        <div class="camp-list" id="campList"></div>
+      </section>
+
+      <!-- ══ Reporting ══ -->
+      <section class="view" id="view-reporting">
+        <div class="page-head">
+          <div>
+            <h1>Visibility Reporting</h1>
+            <p class="page-sub">Track how your paid and organic visibility performs, the credits you spend, and the pages driving the most clicks.</p>
+          </div>
+          <div class="rep-filters">
+            <select class="inp"><option>Last 6 months</option><option>Last 3 months</option><option>Last month</option></select>
+            <select class="inp"><option>All campaigns</option></select>
+          </div>
+        </div>
+        <div class="rep-cards" id="repCards"></div>
+        <div class="rep-panel">
+          <div class="panel-head">
+            <h3>Clicks per month</h3>
+            <div class="seg"><button class="on">Month</button><button>Week</button></div>
+          </div>
+          <div class="chart" id="repChart"></div>
+          <div class="legend">
+            <span><i class="lg lg-paid"></i>Paid</span>
+            <span><i class="lg lg-org"></i>Organic</span>
+            <span><i class="lg lg-cred"></i>Credits spent</span>
+          </div>
+        </div>
+        <div class="rep-panel">
+          <h3>Conversions breakdown</h3>
+          <p class="panel-sub">Conversions gathers the number of website clicks, social media clicks and messages you got from your profile.</p>
+          <div class="rep-cards" id="repConv"></div>
+        </div>
+        <div class="rep-panel">
+          <div class="panel-head">
+            <h3>Clicks breakdown</h3>
+            <div class="seg" id="cbSeg">
+              <button class="on" data-cb="services">Services</button>
+              <button data-cb="locations">Locations</button>
+              <button data-cb="languages">Languages</button>
+            </div>
+          </div>
+          <div class="cb-legend"><span><i class="lg lg-paid"></i>Paid</span><span><i class="lg lg-org"></i>Organic</span></div>
+          <div id="repBreakdown"></div>
+        </div>
+        <div class="rep-panel">
+          <div class="panel-head">
+            <h3>Top pages</h3>
+            <button class="btn btn-ghost btn-sm" id="exportCsv">⬇ Export CSV</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="rep-table" id="repTable">
+              <thead><tr>
+                <th>Page</th><th>Expertise</th><th>Location</th>
+                <th class="num">Impressions</th><th class="num">Paid clicks</th>
+                <th class="num">Organic clicks</th><th class="num">Avg. CPC</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- campaign modal -->
+<div class="modal-bg" id="campModalBg" onclick="if(event.target===this) closeCampModal()">
+  <div class="modal">
+    <button class="x" onclick="closeCampModal()" title="Close">✕</button>
+    <h3 id="campModalTitle">Start new campaign</h3>
+    <div class="field"><label>Campaign name</label>
+      <input class="inp" id="ccName" placeholder="Campaign #1" maxlength="80"></div>
+    <div class="field"><label>Services</label><div class="chips" id="ccServices"></div></div>
+    <div class="field"><label>Locations</label><div class="chips" id="ccLocations"></div></div>
+    <div class="field"><label>Languages</label><div class="chips" id="ccLanguages"></div></div>
+    <div class="field"><label>Budget (credits)</label>
+      <input class="inp" id="ccBudget" type="number" min="0" value="150"></div>
+    <div class="err" id="ccErr"></div>
+    <div class="d-actions">
+      <button class="btn btn-primary btn-sm" id="ccCreate">Create campaign</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeCampModal()">Cancel</button>
     </div>
-  </nav>
-
-  <div class="dash">
-    <div class="dash-head">
-      <h1>Project briefs</h1>
-      <span style="font-size:12.5px;color:var(--dim)" id="syncedAt"></span>
-      <div class="spacer"></div>
-      <button class="btn btn-ghost btn-sm" onclick="loadList(true)">↻ Refresh</button>
-    </div>
-
-    <div class="minis">
-      <div class="mini"><b id="mTotal">0</b><span>Total briefs</span></div>
-      <div class="mini"><b id="mNew">0</b><span>New</span></div>
-      <div class="mini"><b id="mProg">0</b><span>In progress</span></div>
-      <div class="mini"><b id="mWon">0</b><span>Won</span></div>
-    </div>
-
-    <div class="tabs" id="tabs"></div>
-
-    <div class="searchbar">
-      <input class="inp" id="q" placeholder="Search — company, person, email, service…" oninput="renderList()">
-    </div>
-
-    <div class="list" id="list"></div>
   </div>
 </div>
 

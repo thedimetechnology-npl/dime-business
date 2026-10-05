@@ -183,6 +183,7 @@ async function submitBrief(){
       website_bot: document.getElementById('fHoneypot').value
     });
     if(!res.ok) throw new Error(res.error || 'Submission failed');
+    trackEvent('click', { page: '/brief', element: 'convert:brief', expertise: (B.services || []).join(', '), location: 'World' });
     document.getElementById('doneEmail').textContent = B.email;
     document.getElementById('doneRef').textContent = 'Ref: ' + res.id;
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
@@ -236,4 +237,5 @@ document.getElementById('fSubcategory').addEventListener('change', e => {
     if(meta.ok) META = Object.assign(META, meta);
   }catch(_){ /* keep fallbacks */ }
   renderBudgets(); renderTimelines(); renderCategories();
+  initTracking();
 })();

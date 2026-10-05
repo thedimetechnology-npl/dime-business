@@ -20,6 +20,30 @@ async function content(name){
   }catch(_){ return []; }
 }
 
+function trackEvent(type, data){
+  try{
+    fetch(PMS_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action: 'track', type }, data || {})) }).catch(()=>{});
+  }catch(_){}
+}
+function initTracking(){
+  trackEvent('pageview', {
+    page: location.pathname,
+    expertise: (document.body && document.body.getAttribute('data-expertise')) || '',
+    location: (document.body && document.body.getAttribute('data-location')) || ''
+  });
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-track]');
+    if(!el) return;
+    trackEvent('click', {
+      page: location.pathname,
+      element: el.getAttribute('data-track') || '',
+      expertise: el.getAttribute('data-expertise') || '',
+      location: el.getAttribute('data-location') || ''
+    });
+  });
+}
+
 function asset(p){
   if(!p) return '';
   return /^https?:/i.test(p) ? p : SITE + (p.charAt(0) === '/' ? p : '/' + p);
