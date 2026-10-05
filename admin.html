@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Brief Inbox — The Dime Technology</title>
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- login -->
+<div class="login-wrap" id="loginView">
+  <form class="login" id="loginForm">
+    <div class="logo"><img src="logo.png" alt="The Dime Technology"></div>
+    <h1>Brief Inbox</h1>
+    <p class="sub">Project briefs from app.thedimetechnology.com.np<br>Sign in with your PMS account</p>
+    <div class="field"><label>Username</label>
+      <input class="inp" id="lgUser" autocomplete="username" required></div>
+    <div class="field"><label>Password</label>
+      <input class="inp" id="lgPass" type="password" autocomplete="current-password" required></div>
+    <div class="err" id="lgErr"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:6px" id="lgBtn" type="submit">Sign in</button>
+    <p class="sub" style="margin-top:18px"><a href="index.html" style="color:var(--muted)">← Back to agency profile</a></p>
+  </form>
+</div>
+
+<!-- app -->
+<div id="appView" style="display:none">
+  <nav class="nav">
+    <div class="nav-in">
+      <a class="brand" href="index.html">
+        <img src="logo.png" alt="The Dime Technology">
+        <div>Brief Inbox<small id="whoami">signed in</small></div>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">Agency profile</a>
+        <a href="brief.html">Open form</a>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Log out</button>
+    </div>
+  </nav>
+
+  <div class="dash">
+    <div class="dash-head">
+      <h1>Project briefs</h1>
+      <span style="font-size:12.5px;color:var(--dim)" id="syncedAt"></span>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-sm" onclick="loadList(true)">↻ Refresh</button>
+    </div>
+
+    <div class="minis">
+      <div class="mini"><b id="mTotal">0</b><span>Total briefs</span></div>
+      <div class="mini"><b id="mNew">0</b><span>New</span></div>
+      <div class="mini"><b id="mProg">0</b><span>In progress</span></div>
+      <div class="mini"><b id="mWon">0</b><span>Won</span></div>
+    </div>
+
+    <div class="tabs" id="tabs"></div>
+
+    <div class="searchbar">
+      <input class="inp" id="q" placeholder="Search — company, person, email, service…" oninput="renderList()">
+    </div>
+
+    <div class="list" id="list"></div>
+  </div>
+</div>
+
+<!-- detail drawer -->
+<div class="drawer-bg" id="drawerBg" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <button class="x" onclick="closeDrawer()" title="Close">✕</button>
+  <div id="drawerBody"></div>
+</aside>
+
+<script src="common.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

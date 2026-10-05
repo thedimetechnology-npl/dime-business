@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Post a Project — The Dime Technology</title>
+<meta name="description" content="Describe your project in 2 minutes and get a reply from The Dime Technology within 24 hours.">
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="brand" href="index.html">
+      <img src="logo.png" alt="The Dime Technology">
+      <div>The Dime Technology<small>Project Brief</small></div>
+    </a>
+    <div class="nav-links"><a href="index.html">← Agency profile</a></div>
+    <a class="btn btn-ghost btn-sm" href="index.html">Cancel</a>
+  </div>
+</nav>
+
+<div class="wiz-top">
+  <a class="back" href="index.html">← Back</a>
+  <h1>Tell us about your project</h1>
+  <p class="sub">4 short steps · about 2 minutes · no account needed</p>
+  <div class="progress" id="progress">
+    <div class="pstep on" data-s="1"><div class="bar"></div><span>Services</span></div>
+    <div class="pstep" data-s="2"><div class="bar"></div><span>Project</span></div>
+    <div class="pstep" data-s="3"><div class="bar"></div><span>About you</span></div>
+    <div class="pstep" data-s="4"><div class="bar"></div><span>Review</span></div>
+  </div>
+</div>
+
+<div class="wiz">
+
+  <!-- Step 1: services -->
+  <section class="panel on" id="p1">
+    <h2>What do you need?</h2>
+    <p class="hint">Pick everything that applies — this helps us route your brief to the right people.</p>
+    <div class="chips" id="svcChips"></div>
+    <div class="err" id="e1">Select at least one service to continue.</div>
+    <div class="wiz-nav"><a class="btn btn-ghost" href="index.html">Cancel</a>
+      <button class="btn btn-primary" onclick="gotoStep(2)">Continue →</button></div>
+  </section>
+
+  <!-- Step 2: project -->
+  <section class="panel" id="p2">
+    <h2>About the project</h2>
+    <p class="hint">Rough ideas are fine — we'll help shape the scope.</p>
+
+    <div class="field">
+      <label>Project description <i>*</i></label>
+      <textarea class="inp" id="fDesc" maxlength="3000"
+        placeholder="What are you trying to build or solve? Any must-have features, links to references, problems you're facing…"></textarea>
+      <div class="help"><span id="descCount">0</span>/3000 characters · minimum 30</div>
+    </div>
+
+    <label class="q-label">Budget range</label>
+    <div class="cur-toggle" id="curToggle">
+      <button type="button" class="on" data-cur="NPR">NPR</button>
+      <button type="button" data-cur="USD">USD</button>
+    </div>
+    <div class="opts" id="budgetOpts" style="margin-top:12px"></div>
+
+    <label class="q-label">Timeline</label>
+    <div class="opts" id="timeOpts"></div>
+
+    <div class="err" id="e2">Add a project description (min 30 characters) and pick a budget range.</div>
+    <div class="wiz-nav"><button class="btn btn-ghost" onclick="gotoStep(1)">← Back</button>
+      <button class="btn btn-primary" onclick="gotoStep(3)">Continue →</button></div>
+  </section>
+
+  <!-- Step 3: about you -->
+  <section class="panel" id="p3">
+    <h2>About you</h2>
+    <p class="hint">Where should we send our reply? We never share your details.</p>
+
+    <div class="row2">
+      <div class="field"><label>Company <i>*</i></label>
+        <input class="inp" id="fCompany" maxlength="120" placeholder="Acme Pvt Ltd" autocomplete="organization"></div>
+      <div class="field"><label>Your name <i>*</i></label>
+        <input class="inp" id="fPerson" maxlength="120" placeholder="Jane Doe" autocomplete="name"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Email <i>*</i></label>
+        <input class="inp" id="fEmail" type="email" maxlength="160" placeholder="jane@acme.com" autocomplete="email"></div>
+      <div class="field"><label>Phone</label>
+        <input class="inp" id="fPhone" type="tel" maxlength="40" placeholder="+977 9801024024" autocomplete="tel"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Country</label>
+        <input class="inp" id="fCountry" list="countryList" maxlength="60" placeholder="Nepal" autocomplete="country-name">
+        <datalist id="countryList">
+          <option>Nepal</option><option>India</option><option>United States</option><option>United Kingdom</option>
+          <option>Australia</option><option>Germany</option><option>France</option><option>Netherlands</option>
+          <option>United Arab Emirates</option><option>Saudi Arabia</option><option>Qatar</option><option>Kuwait</option>
+          <option>Japan</option><option>South Korea</option><option>Singapore</option><option>Malaysia</option>
+          <option>Canada</option><option>Spain</option><option>Italy</option><option>Portugal</option>
+          <option>Poland</option><option>Czechia</option><option>Sweden</option><option>Norway</option>
+          <option>Denmark</option><option>Finland</option><option>Ireland</option><option>Switzerland</option>
+          <option>Austria</option><option>Belgium</option><option>Brazil</option><option>Mexico</option>
+          <option>Chile</option><option>South Africa</option><option>Nigeria</option><option>Kenya</option>
+          <option>Bangladesh</option><option>Sri Lanka</option><option>Pakistan</option><option>China</option>
+          <option>New Zealand</option><option>Russia</option><option>Turkey</option><option>Egypt</option>
+        </datalist></div>
+      <div class="field"><label>Website</label>
+        <input class="inp" id="fWebsite" maxlength="160" placeholder="acme.com" autocomplete="url"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Industry</label>
+        <select class="inp" id="fCategory"><option value="">— Select industry —</option></select></div>
+      <div class="field"><label>Segment</label>
+        <select class="inp" id="fSubcategory"><option value="">— Select segment —</option></select></div>
+    </div>
+
+    <!-- honeypot -->
+    <input class="hp" type="text" id="fHoneypot" name="website_bot" tabindex="-1" autocomplete="off">
+
+    <div class="err" id="e3">Company, name and a valid email address are required.</div>
+    <div class="wiz-nav"><button class="btn btn-ghost" onclick="gotoStep(2)">← Back</button>
+      <button class="btn btn-primary" onclick="gotoStep(4)">Review →</button></div>
+  </section>
+
+  <!-- Step 4: review -->
+  <section class="panel" id="p4">
+    <h2>Review &amp; submit</h2>
+    <p class="hint">Make sure everything looks right — you can go back and edit any step.</p>
+    <div class="rev-list" id="revList"></div>
+    <div class="err" id="e4"></div>
+    <div class="wiz-nav">
+      <button class="btn btn-ghost" onclick="gotoStep(3)">← Back</button>
+      <button class="btn btn-primary btn-lg" id="submitBtn" onclick="submitBrief()">Submit my brief ✓</button>
+    </div>
+  </section>
+
+  <!-- success -->
+  <section class="panel" id="pDone">
+    <div class="done">
+      <div class="ring">✓</div>
+      <h2>Brief received!</h2>
+      <p>Thanks — your project brief is with our team. We'll reply to <b id="doneEmail"></b> within 24 hours
+        (usually much sooner).</p>
+      <div class="ref" id="doneRef">Ref: —</div>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="index.html">Back to agency profile</a>
+        <a class="btn btn-ghost" href="https://www.linkedin.com/in/shahidalam-nepal/" target="_blank" rel="noopener">Connect on LinkedIn</a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="common.js"></script>
+<script src="brief.js"></script>
+</body>
+</html>
