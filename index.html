@@ -122,11 +122,21 @@
   </section>
 
   <section id="reviews">
-    <div class="sec-head">
-      <div class="kicker">Client reviews</div>
-      <h2>What clients say</h2>
+    <div class="sec-head rev-head">
+      <div>
+        <div class="kicker">Client reviews</div>
+        <h2>What clients say</h2>
+      </div>
+      <div class="rev-arrows" id="revArrows">
+        <button type="button" class="pg-arrow" id="revPrev" aria-label="Previous reviews">←</button>
+        <button type="button" class="pg-arrow" id="revNext" aria-label="Next reviews">→</button>
+      </div>
     </div>
-    <div class="grid g3" id="reviewsGrid"></div>
+    <div class="rev-marquee">
+      <div class="rev-offset" id="revOffset">
+        <div class="rev-track" id="reviewsGrid"></div>
+      </div>
+    </div>
   </section>
 
   <section id="cta">

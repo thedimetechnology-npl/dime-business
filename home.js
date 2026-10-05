@@ -183,14 +183,13 @@ async function renderReviews(){
   const el = document.getElementById('reviewsGrid');
   if(!el) return;
   const all = await content('testimonials');
-  const list = all.slice(0, 6);
-  if(!list.length){ el.closest('section').style.display = 'none'; return; }
+  if(!all.length){ el.closest('section').style.display = 'none'; return; }
   const avg = all.length ? (all.reduce((s, t) => s + (Number(t.rating) || 5), 0) / all.length) : 5;
   const rv = document.getElementById('ratingVal');
   const rc = document.getElementById('ratingCount');
   if(rv) rv.textContent = avg.toFixed(1);
   if(rc) rc.textContent = all.length + ' verified client reviews';
-  el.innerHTML = list.map(t => {
+  const card = t => {
     const av = asset(t.image);
     const who = av
       ? '<img src="' + esc(av) + '" alt="" loading="lazy" onerror="this.outerHTML=\'<div class=&quot;av&quot;>' + esc(initials(t.name)) + '</div>\'">'
@@ -199,7 +198,32 @@ async function renderReviews(){
     return '<div class="review">' + starsHTML(t.rating) +
       '<p>“' + esc(t.feedback) + '”</p>' +
       '<div class="who">' + who + '<div><b>' + esc(t.name) + '</b><span>' + esc(role || t.location || '') + '</span></div></div></div>';
-  }).join('');
+  };
+  el.innerHTML = all.map(card).join('') + all.map(card).join('');
+  const arrows = document.getElementById('revArrows');
+  if(arrows) arrows.style.display = all.length >= 3 ? '' : 'none';
+  const prev = document.getElementById('revPrev');
+  const next = document.getElementById('revNext');
+  if(prev) prev.addEventListener('click', () => revGo(1));
+  if(next) next.addEventListener('click', () => revGo(-1));
+}
+
+const REV_CARD = 336;
+let revOffsetState = 0;
+
+function revGo(dir){
+  const box = document.getElementById('revOffset');
+  const track = document.getElementById('reviewsGrid');
+  if(!box || !track) return;
+  const n = track.children.length / 2;
+  if(n < 1) return;
+  const cycle = REV_CARD * n;
+  let norm = (revOffsetState + dir * REV_CARD) % cycle;
+  if(norm > 0) norm -= cycle;
+  revOffsetState = norm;
+  box.style.transition = 'none';
+  box.style.transform = 'translateX(' + norm + 'px)';
+  requestAnimationFrame(() => requestAnimationFrame(() => { box.style.transition = ''; }));
 }
 
 renderServices();
