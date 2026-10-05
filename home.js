@@ -77,10 +77,23 @@ function applyWorkFilter(){
   }).join('');
 }
 
-function renderCoreChips(){
-  const cc = document.getElementById('coreChips');
+function techStackLabels(){
+  const counts = {};
+  WORK_POSTS.forEach(p => {
+    const seen = {};
+    const add = l => {
+      if(l && NOT_STACK.indexOf(l) === -1 && CORE_STACK.indexOf(l) === -1) seen[l] = true;
+    };
+    add(p.category);
+    (p.tags || []).forEach(add);
+    Object.keys(seen).forEach(l => { counts[l] = (counts[l] || 0) + 1; });
+  });
+  return Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
+}
+
+function renderChipRow(cc, labels){
   if(!cc) return;
-  cc.innerHTML = CORE_STACK.map(l => {
+  cc.innerHTML = labels.map(l => {
     const n = WORK_POSTS.filter(p => postHasCore(p, l)).length;
     return '<button type="button" class="chip' + (n ? '' : ' off') + '" data-core="' + esc(l) + '">' +
       esc(l) + '<span class="n">' + n + '</span></button>';
@@ -93,6 +106,17 @@ function renderCoreChips(){
       applyWorkFilter();
     });
   });
+}
+
+function renderCoreChips(){
+  renderChipRow(document.getElementById('coreChips'), CORE_STACK);
+  const techRow = document.getElementById('techChips');
+  if(techRow){
+    const labels = techStackLabels();
+    const row = techRow.closest('.core-row');
+    if(!labels.length){ if(row) row.style.display = 'none'; }
+    else renderChipRow(techRow, labels);
+  }
 }
 
 async function renderWork(){
