@@ -30,6 +30,7 @@ const NOT_STACK = [
 ];
 
 let WORK_POSTS = [];
+let workPage = 1;
 const coreActive = new Set();
 
 function postStacks(p){
@@ -58,16 +59,38 @@ function applyWorkFilter(){
         const hay = [p.title, p.excerpt, p.category, (p.tags || []).join(' '), postStacks(p).join(' ')].join(' ').toLowerCase();
         return hay.indexOf(q) !== -1;
       })
-    : WORK_POSTS.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 6);
+    : WORK_POSTS.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  const totalPages = Math.max(1, Math.ceil(list.length / 6));
+  if(workPage > totalPages) workPage = totalPages;
+  if(workPage < 1) workPage = 1;
+  const start = (workPage - 1) * 6;
+  const pageList = list.slice(start, start + 6);
   const cnt = document.getElementById('workCount');
-  if(cnt) cnt.textContent = filtering
-    ? list.length + ' of ' + WORK_POSTS.length + ' projects'
-    : 'Latest 6 of ' + WORK_POSTS.length + ' projects';
-  if(!list.length){
+  if(cnt){
+    if(!list.length) cnt.textContent = '';
+    else if(filtering) cnt.textContent = list.length + ' of ' + WORK_POSTS.length + ' projects';
+    else if(workPage === 1 && totalPages === 1) cnt.textContent = 'Latest ' + list.length + ' of ' + WORK_POSTS.length + ' projects';
+    else if(workPage === 1) cnt.textContent = 'Latest 6 of ' + WORK_POSTS.length + ' projects';
+    else cnt.textContent = 'Showing ' + (start + 1) + '–' + (start + pageList.length) + ' of ' + WORK_POSTS.length + ' projects';
+  }
+  const pager = document.getElementById('workPager');
+  if(pager){
+    const more = list.length > 6;
+    pager.classList.toggle('on', more);
+    if(more){
+      const prev = document.getElementById('workPrev');
+      const next = document.getElementById('workNext');
+      const ind = document.getElementById('workPageInd');
+      prev.disabled = workPage <= 1;
+      next.disabled = workPage >= totalPages;
+      if(ind) ind.textContent = 'Page ' + workPage + ' of ' + totalPages;
+    }
+  }
+  if(!pageList.length){
     el.innerHTML = '<div class="empty"><b>No projects match that stack</b>Try another keyword or clear a Core Stack filter — or post a brief and we\'ll share references from our backlog.</div>';
     return;
   }
-  el.innerHTML = list.map(p => {
+  el.innerHTML = pageList.map(p => {
     const stacks = postStacks(p).filter(s => s !== p.category);
     const stackHTML = stacks.slice(0, 3).map(s => '<span class="schip">' + esc(s) + '</span>').join('') +
       (stacks.length > 3 ? '<span class="schip more">+' + (stacks.length - 3) + '</span>' : '');
@@ -106,6 +129,7 @@ function renderChipRow(cc, labels){
       const l = b.getAttribute('data-core');
       if(coreActive.has(l)){ coreActive.delete(l); b.classList.remove('on'); }
       else { coreActive.add(l); b.classList.add('on'); }
+      workPage = 1;
       applyWorkFilter();
     });
   });
@@ -132,8 +156,17 @@ async function renderWork(){
   }
   renderCoreChips();
   const si = document.getElementById('workSearch');
-  if(si) si.addEventListener('input', applyWorkFilter);
+  if(si) si.addEventListener('input', () => { workPage = 1; applyWorkFilter(); });
+  const prev = document.getElementById('workPrev');
+  const next = document.getElementById('workNext');
+  if(prev) prev.addEventListener('click', () => { workPage--; applyWorkFilter(); scrollToWork(); });
+  if(next) next.addEventListener('click', () => { workPage++; applyWorkFilter(); scrollToWork(); });
   applyWorkFilter();
+}
+
+function scrollToWork(){
+  const s = document.getElementById('work');
+  if(s) s.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function renderClients(){
