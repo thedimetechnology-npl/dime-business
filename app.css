@@ -112,6 +112,8 @@ section{padding:46px 0;position:relative;z-index:1}
 
 /* work toolbar — stack search + core stack chips */
 .work-tools{margin-bottom:22px;display:grid;gap:14px}
+.stack-box{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;
+  display:grid;gap:13px;box-shadow:var(--shadow)}
 .work-search{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .work-search .box{position:relative;flex:1;max-width:540px}
 .work-search .box svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--dim);pointer-events:none}

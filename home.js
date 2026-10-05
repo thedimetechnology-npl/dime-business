@@ -50,16 +50,19 @@ function applyWorkFilter(){
   const si = document.getElementById('workSearch');
   const q = ((si && si.value) || '').trim().toLowerCase();
   const chips = Array.from(coreActive);
-  const list = WORK_POSTS.filter(p => {
-    if(chips.length && !chips.some(l => postHasCore(p, l))) return false;
-    if(!q) return true;
-    const hay = [p.title, p.excerpt, p.category, (p.tags || []).join(' '), postStacks(p).join(' ')].join(' ').toLowerCase();
-    return hay.indexOf(q) !== -1;
-  });
+  const filtering = chips.length > 0 || !!q;
+  const list = filtering
+    ? WORK_POSTS.filter(p => {
+        if(chips.length && !chips.some(l => postHasCore(p, l))) return false;
+        if(!q) return true;
+        const hay = [p.title, p.excerpt, p.category, (p.tags || []).join(' '), postStacks(p).join(' ')].join(' ').toLowerCase();
+        return hay.indexOf(q) !== -1;
+      })
+    : WORK_POSTS.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 6);
   const cnt = document.getElementById('workCount');
-  if(cnt) cnt.textContent = (list.length === WORK_POSTS.length)
-    ? WORK_POSTS.length + ' projects'
-    : list.length + ' of ' + WORK_POSTS.length + ' projects';
+  if(cnt) cnt.textContent = filtering
+    ? list.length + ' of ' + WORK_POSTS.length + ' projects'
+    : 'Latest 6 of ' + WORK_POSTS.length + ' projects';
   if(!list.length){
     el.innerHTML = '<div class="empty"><b>No projects match that stack</b>Try another keyword or clear a Core Stack filter — or post a brief and we\'ll share references from our backlog.</div>';
     return;
