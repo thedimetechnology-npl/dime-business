@@ -15,21 +15,98 @@ function renderServices(){
   ).join('');
 }
 
+const CORE_STACK = [
+  'AI', 'ASP.Net', 'DevOps', 'Full-Stack', 'Graphic and Video Editing',
+  'Information and Security', 'Mobile App', 'Moodle LMS', 'Network and System',
+  'Programming Language', 'Utilities and Scripting', 'WordPress', 'Zoho'
+];
+
+const NOT_STACK = [
+  'Australia', 'Canada', 'Chile', 'Croatia', 'Cyprus', 'India', 'Jordan',
+  'Kazakhstan', 'Malaysia', 'Nepal', 'Russia', 'Saudi Arabia', 'UAE', 'USA',
+  'Al Yousuf Motors', 'Awwal Tech', 'Energy Improvement', 'Fortytwo Labs',
+  'Infonet Communication', 'Keam Softwares', 'Mazenet Solution', 'Permi Tech',
+  'SapSG & Siga Sys', 'SharePro', 'System Canada', 'TI Systems'
+];
+
+let WORK_POSTS = [];
+const coreActive = new Set();
+
+function postStacks(p){
+  const out = [];
+  const add = t => { if(t && !NOT_STACK.includes(t) && !out.includes(t)) out.push(t); };
+  add(p.category);
+  (p.tags || []).forEach(add);
+  return out;
+}
+
+function postHasCore(p, label){
+  return p.category === label || (p.tags || []).indexOf(label) !== -1;
+}
+
+function applyWorkFilter(){
+  const el = document.getElementById('workGrid');
+  if(!el) return;
+  const si = document.getElementById('workSearch');
+  const q = ((si && si.value) || '').trim().toLowerCase();
+  const chips = Array.from(coreActive);
+  const list = WORK_POSTS.filter(p => {
+    if(chips.length && !chips.some(l => postHasCore(p, l))) return false;
+    if(!q) return true;
+    const hay = [p.title, p.excerpt, p.category, (p.tags || []).join(' '), postStacks(p).join(' ')].join(' ').toLowerCase();
+    return hay.indexOf(q) !== -1;
+  });
+  const cnt = document.getElementById('workCount');
+  if(cnt) cnt.textContent = (list.length === WORK_POSTS.length)
+    ? WORK_POSTS.length + ' projects'
+    : list.length + ' of ' + WORK_POSTS.length + ' projects';
+  if(!list.length){
+    el.innerHTML = '<div class="empty"><b>No projects match that stack</b>Try another keyword or clear a Core Stack filter — or post a brief and we\'ll share references from our backlog.</div>';
+    return;
+  }
+  el.innerHTML = list.map(p => {
+    const stacks = postStacks(p).filter(s => s !== p.category);
+    const stackHTML = stacks.slice(0, 3).map(s => '<span class="schip">' + esc(s) + '</span>').join('') +
+      (stacks.length > 3 ? '<span class="schip more">+' + (stacks.length - 3) + '</span>' : '');
+    return '<a class="work" href="' + esc(p.url || '#') + '" target="_blank" rel="noopener">' +
+      '<div class="thumb"><img src="' + esc(p.image || '') + '" alt="" loading="lazy" onerror="this.style.display=\'none\'"></div>' +
+      '<div class="body"><div class="wtop"><span class="tag">' + esc(p.category || 'Case study') + '</span>' +
+      '<span class="when">' + esc(fmtDate(p.date)) + (p.readTime ? ' · ' + esc(p.readTime) : '') + '</span></div>' +
+      '<h3>' + esc(p.title || '') + '</h3>' +
+      '<div class="stackline">' + stackHTML + '</div></div></a>';
+  }).join('');
+}
+
+function renderCoreChips(){
+  const cc = document.getElementById('coreChips');
+  if(!cc) return;
+  cc.innerHTML = CORE_STACK.map(l => {
+    const n = WORK_POSTS.filter(p => postHasCore(p, l)).length;
+    return '<button type="button" class="chip' + (n ? '' : ' off') + '" data-core="' + esc(l) + '">' +
+      esc(l) + '<span class="n">' + n + '</span></button>';
+  }).join('');
+  Array.prototype.forEach.call(cc.querySelectorAll('[data-core]'), b => {
+    b.addEventListener('click', () => {
+      const l = b.getAttribute('data-core');
+      if(coreActive.has(l)){ coreActive.delete(l); b.classList.remove('on'); }
+      else { coreActive.add(l); b.classList.add('on'); }
+      applyWorkFilter();
+    });
+  });
+}
+
 async function renderWork(){
   const el = document.getElementById('workGrid');
   if(!el) return;
-  const posts = (await content('posts')).slice(0, 3);
-  if(!posts.length){
+  try{ WORK_POSTS = (await content('posts')) || []; }catch(e){ WORK_POSTS = []; }
+  if(!WORK_POSTS.length){
     el.innerHTML = '<div class="empty"><b>Case studies coming soon</b>In the meantime, post a brief and ask us for references in your industry.</div>';
     return;
   }
-  el.innerHTML = posts.map(p =>
-    '<a class="work" href="' + esc(p.url || '#') + '" target="_blank" rel="noopener">' +
-      '<div class="thumb"><img src="' + esc(p.image || '') + '" alt="" loading="lazy" onerror="this.style.display=\'none\'"></div>' +
-      '<div class="body"><span class="tag">' + esc(p.category || 'Case study') + '</span>' +
-      '<h3>' + esc(p.title || '') + '</h3>' +
-      '<div class="when">' + esc(fmtDate(p.date)) + (p.readTime ? ' · ' + esc(p.readTime) : '') + '</div></div></a>'
-  ).join('');
+  renderCoreChips();
+  const si = document.getElementById('workSearch');
+  if(si) si.addEventListener('input', applyWorkFilter);
+  applyWorkFilter();
 }
 
 async function renderClients(){
