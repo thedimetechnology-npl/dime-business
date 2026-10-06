@@ -344,9 +344,11 @@ async function openCampLogs(c){
     const res = await pmsPost({ action: 'campaignLogs', token: TOKEN, id: c.id });
     if(!res.ok) throw new Error(res.error || 'Could not load activity log');
     const rows = res.logs || [];
-    $('logSum').innerHTML = '<b>' + res.views + '</b> views · <b>' + res.clicks + '</b> clicks' +
+    const sum = $('logSum');
+    if(sum) sum.innerHTML = '<b>' + res.views + '</b> views · <b>' + res.clicks + '</b> clicks' +
       (res.total > rows.length ? '<span class="log-more">latest ' + rows.length + ' of ' + res.total + '</span>' : '');
-    $('logRows').innerHTML = rows.length ? rows.map(ev => {
+    const rowsEl = $('logRows');
+    if(rowsEl) rowsEl.innerHTML = rows.length ? rows.map(ev => {
       const where = ev.country || ev.location || '';
       const clk = ev.type === 'click';
       return '<div class="log-row">' +
@@ -357,7 +359,8 @@ async function openCampLogs(c){
       '</div>';
     }).join('') : '<div class="log-empty">No activity yet — events appear here as visitors view or click your profile while the campaign runs.</div>';
   }catch(err){
-    $('logRows').innerHTML = '<div class="log-empty">' + esc(err.message || 'Could not load logs') + '</div>';
+    const rowsEl = $('logRows');
+    if(rowsEl) rowsEl.innerHTML = '<div class="log-empty">' + esc(err.message || 'Could not load logs') + '</div>';
   }
 }
 
@@ -378,7 +381,8 @@ function openCampModal(c){
   window._editCampId = edit ? c.id : null;
   $('campModalTitle').textContent = edit ? 'Campaign settings' : 'Start new campaign';
   $('ccName').value = edit ? (c.name || '') : '';
-  $('ccDuration').value = edit ? (c.duration || 30) : 30;
+  const durEl = $('ccDuration');
+  if(durEl) durEl.value = edit ? (c.duration || 30) : 30;
   ccSel = edit
     ? { services: (c.targets.services || []).slice(), locations: (c.targets.locations || []).slice(), languages: (c.targets.languages || []).slice() }
     : { services: [], locations: [], languages: [] };
@@ -393,7 +397,8 @@ function closeCampModal(){ $('campModalBg').classList.remove('on'); }
 $('newCampaignBtn').addEventListener('click', () => openCampModal(null));
 $('ccCreate').addEventListener('click', async () => {
   const name = $('ccName').value.trim();
-  const duration = Math.max(1, Math.min(365, parseInt($('ccDuration').value, 10) || 30));
+  const durEl = $('ccDuration');
+  const duration = Math.max(1, Math.min(365, parseInt(durEl && durEl.value, 10) || 30));
   const editing = !!window._editCampId;
   try{
     let res;
@@ -477,6 +482,7 @@ function renderBreakdown(){
 function renderTable(){
   const rows = (REPORT && REPORT.topPages) || [];
   const tb = document.querySelector('#repTable tbody');
+  if(!tb) return;
   tb.innerHTML = rows.length ? rows.map(p =>
     '<tr><td><span class="pg">▦</span> ' + esc(p.page) + '</td>' +
     '<td>' + esc(p.expertise || '—') + '</td>' +
@@ -518,9 +524,10 @@ function renderSeoTabs(){
   }));
 }
 function renderSeoPanels(){
-  ['seoAudit','seoMeta','seoSitemap','seoSchema'].forEach(id => { $(id).style.display = 'none'; });
+  ['seoAudit','seoMeta','seoSitemap','seoSchema'].forEach(id => { const el = $(id); if(el) el.style.display = 'none'; });
   const map = { audit: 'seoAudit', meta: 'seoMeta', sitemap: 'seoSitemap', schema: 'seoSchema' };
-  $(map[seoTab]).style.display = 'block';
+  const panel = $(map[seoTab]);
+  if(panel) panel.style.display = 'block';
   if(seoTab === 'audit') renderAudit();
   if(seoTab === 'meta') renderMetaForm();
   if(seoTab === 'sitemap') renderSitemapForm();
