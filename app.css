@@ -210,6 +210,8 @@ section{padding:46px 0;position:relative;z-index:1}
 .camp-ctrl{display:flex;align-items:center;gap:12px}
 .icon-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line2);background:var(--surface2);color:var(--muted);font-size:15px;transition:.14s;cursor:pointer;font-family:inherit}
 .icon-btn:hover{border-color:var(--blue2);color:var(--text)}
+.icon-btn.danger:hover{border-color:var(--red);color:#fca5a5;background:var(--red-soft)}
+.icon-btn.armed{background:var(--red);border-color:var(--red);color:#fff}
 .camp-targets{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}
 .camp-targets .lbl{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);padding-top:8px;flex:none}
 .chip.static{cursor:default;pointer-events:none}

@@ -254,7 +254,8 @@ function renderCampList(){
           '<span class="camp-status ' + campStatusClass(c.status) + '">' + esc(c.status) + '</span></div>' +
         '<div class="camp-ctrl">' +
           '<label class="switch" title="Toggle campaign"><input type="checkbox" data-camp-toggle="' + esc(c.id) + '"' + (active ? ' checked' : '') + '><span></span></label>' +
-          '<button class="icon-btn" data-camp-edit="' + esc(c.id) + '" title="Settings">⚙</button>' +
+          '<button class="icon-btn" data-camp-edit="' + esc(c.id) + '" title="Edit campaign">✎</button>' +
+          '<button class="icon-btn danger" data-camp-del="' + esc(c.id) + '" title="Delete campaign">🗑</button>' +
         '</div>' +
       '</div>' +
       '<div class="camp-targets"><span class="lbl">Targets</span>' +
@@ -275,6 +276,28 @@ function renderCampList(){
     const c = CAMPAIGNS.find(x => x.id === el.dataset.campEdit);
     if(c) openCampModal(c);
   }));
+  document.querySelectorAll('[data-camp-del]').forEach(el => el.addEventListener('click', () => {
+    const id = el.dataset.campDel;
+    if(!el.dataset.arm){
+      el.dataset.arm = '1';
+      el.textContent = 'Sure?';
+      el.classList.add('armed');
+      setTimeout(() => { el.dataset.arm = ''; el.textContent = '🗑'; el.classList.remove('armed'); }, 3000);
+      return;
+    }
+    deleteCampaign(id);
+  }));
+}
+async function deleteCampaign(id){
+  try{
+    const res = await pmsPost({ action: 'campaignDelete', token: TOKEN, id });
+    if(!res.ok) throw new Error(res.error || 'Delete failed');
+    CAMPAIGNS = CAMPAIGNS.filter(x => x.id !== id);
+    renderCampTabs(); renderCampList();
+    toast('Campaign deleted', 'ok');
+  }catch(err){
+    toast(err.message || 'Delete failed', 'err');
+  }
 }
 async function updateCampaign(id, patch){
   try{
