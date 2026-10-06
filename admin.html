@@ -43,10 +43,6 @@
         <a data-view="seo"><span class="si">⌕</span>SEO Tools</a>
       </nav>
       <div class="side-foot">
-        <div class="credits">
-          <b>200 credits</b>
-          <span>Next expiration: 200 credits on October 5, 2027</span>
-        </div>
         <button class="btn btn-ghost btn-sm" onclick="logout()">Log out</button>
       </div>
     </aside>
@@ -89,7 +85,6 @@
           </div>
           <button class="btn btn-primary btn-sm" id="newCampaignBtn">+ Start new campaign</button>
         </div>
-        <div class="period">Current period: <b id="periodLabel"></b></div>
         <div class="tabs" id="campTabs"></div>
         <div class="camp-list" id="campList"></div>
       </section>
@@ -99,7 +94,7 @@
         <div class="page-head">
           <div>
             <h1>Visibility Reporting</h1>
-            <p class="page-sub">Track how your paid and organic visibility performs, the credits you spend, and the pages driving the most clicks.</p>
+            <p class="page-sub">Track how your paid and organic visibility performs and the pages driving the most clicks.</p>
           </div>
           <div class="rep-filters">
             <select class="inp"><option>Last 6 months</option><option>Last 3 months</option><option>Last month</option></select>
@@ -116,7 +111,6 @@
           <div class="legend">
             <span><i class="lg lg-paid"></i>Paid</span>
             <span><i class="lg lg-org"></i>Organic</span>
-            <span><i class="lg lg-cred"></i>Credits spent</span>
           </div>
         </div>
         <div class="rep-panel">
@@ -146,7 +140,7 @@
               <thead><tr>
                 <th>Page</th><th>Expertise</th><th>Location</th>
                 <th class="num">Impressions</th><th class="num">Paid clicks</th>
-                <th class="num">Organic clicks</th><th class="num">Avg. CPC</th>
+                <th class="num">Organic clicks</th>
               </tr></thead>
               <tbody></tbody>
             </table>
@@ -186,8 +180,6 @@
     <div class="field"><label>Services</label><div class="chips" id="ccServices"></div></div>
     <div class="field"><label>Locations</label><div class="chips" id="ccLocations"></div></div>
     <div class="field"><label>Languages</label><div class="chips" id="ccLanguages"></div></div>
-    <div class="field"><label>Budget (credits)</label>
-      <input class="inp" id="ccBudget" type="number" min="0" value="150"></div>
     <div class="err" id="ccErr"></div>
     <div class="d-actions">
       <button class="btn btn-primary btn-sm" id="ccCreate">Create campaign</button>

@@ -210,19 +210,14 @@ async function saveDetail(){
 }
 
 /* ══ Campaigns ══ */
-function periodLabel(){
-  const a = new Date(), b = new Date(Date.now() + 30*24*60*60*1000);
-  const f = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-  return 'From ' + f(a) + ' to ' + f(b);
-}
 async function loadCampaigns(){
   if(!TOKEN) return;
   try{
     const res = await pmsPost({ action: 'campaignList', token: TOKEN });
     if(!res.ok) throw new Error(res.error || 'Failed to load campaigns');
     CAMPAIGNS = res.campaigns || [];
-    $('periodLabel').textContent = periodLabel();
     renderCampTabs(); renderCampList();
+    loadReport(true);
   }catch(err){
     toast(err.message || 'Could not load campaigns', 'err');
   }
@@ -251,8 +246,7 @@ function renderCampList(){
     const t = c.targets || {};
     const chips = [].concat(t.services || [], t.locations || [], t.languages || []);
     const st = stats[c.id] || { impressions: 0, clicks: 0, boosted: chips.length };
-    const spent = (st.clicks * (REPORT ? REPORT.avgCpc : 3.19));
-    const pct = c.budget > 0 ? Math.min(100, Math.round(spent / c.budget * 100)) : 0;
+    const ctr = st.impressions > 0 ? Math.round(st.clicks / st.impressions * 100) + '%' : '0%';
     const active = c.status === 'Active';
     return '<div class="camp-card">' +
       '<div class="camp-top">' +
@@ -265,14 +259,11 @@ function renderCampList(){
       '</div>' +
       '<div class="camp-targets"><span class="lbl">Targets</span>' +
         '<div class="chips">' + chips.map(x => '<span class="chip static">' + esc(x) + '</span>').join('') + '</div></div>' +
-      '<div class="camp-cons"><span class="lbl">Consumption</span>' +
-        '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
-        '<span class="cons-num">' + Math.round(spent) + '/' + c.budget + '</span></div>' +
       '<div class="camp-metrics">' +
         '<div><b>' + st.boosted + '</b><span>Boosted directories</span></div>' +
         '<div><b>' + st.impressions + '</b><span>Impressions</span></div>' +
         '<div><b>' + st.clicks + '</b><span>Clicks to profile</span></div>' +
-        '<div><b>' + (st.clicks > 0 ? Math.round(spent) + ' credits' : '0 credits') + '</b><span>Cost per click (avg.)</span></div>' +
+        '<div><b>' + ctr + '</b><span>Click-through rate</span></div>' +
       '</div></div>';
   }).join('');
   document.querySelectorAll('[data-camp-toggle]').forEach(el => el.addEventListener('change', () => {
@@ -315,7 +306,6 @@ function openCampModal(c){
   window._editCampId = edit ? c.id : null;
   $('campModalTitle').textContent = edit ? 'Campaign settings' : 'Start new campaign';
   $('ccName').value = edit ? (c.name || '') : '';
-  $('ccBudget').value = edit ? (c.budget || 150) : 150;
   ccSel = edit
     ? { services: (c.targets.services || []).slice(), locations: (c.targets.locations || []).slice(), languages: (c.targets.languages || []).slice() }
     : { services: [], locations: [], languages: [] };
@@ -330,14 +320,13 @@ function closeCampModal(){ $('campModalBg').classList.remove('on'); }
 $('newCampaignBtn').addEventListener('click', () => openCampModal(null));
 $('ccCreate').addEventListener('click', async () => {
   const name = $('ccName').value.trim();
-  const budget = Math.max(0, Number($('ccBudget').value) || 0);
   const editing = !!window._editCampId;
   try{
     let res;
     if(editing){
-      res = await pmsPost({ action: 'campaignUpdate', token: TOKEN, id: window._editCampId, name, budget, targets: ccSel });
+      res = await pmsPost({ action: 'campaignUpdate', token: TOKEN, id: window._editCampId, name, targets: ccSel });
     }else{
-      res = await pmsPost({ action: 'campaignCreate', token: TOKEN, name, budget, targets: ccSel });
+      res = await pmsPost({ action: 'campaignCreate', token: TOKEN, name, targets: ccSel });
     }
     if(!res.ok) throw new Error(res.error || 'Save failed');
     closeCampModal();
@@ -350,16 +339,17 @@ $('ccCreate').addEventListener('click', async () => {
 });
 
 /* ══ Reporting ══ */
-async function loadReport(){
+async function loadReport(silent){
   if(!TOKEN) return;
   try{
     const res = await pmsPost({ action: 'report', token: TOKEN });
     if(!res.ok) throw new Error(res.error || 'Failed to load report');
     REPORT = res;
-    if(VIEW === 'campaigns') renderCampList();
+    if(silent){ renderCampList(); return; }
+    if(VIEW === 'campaigns'){ renderCampList(); return; }
     renderRepCards(); renderChart(); renderConv(); renderBreakdown(); renderTable();
   }catch(err){
-    toast(err.message || 'Could not load report', 'err');
+    if(!silent) toast(err.message || 'Could not load report', 'err');
   }
 }
 function renderRepCards(){
@@ -368,8 +358,7 @@ function renderRepCards(){
     [r.paidImpressions, 'Paid impressions'],
     [r.paidClicks, 'Paid clicks'],
     [r.organicClicks, 'Organic clicks'],
-    [r.conversions, 'Conversions'],
-    [r.avgCpc.toFixed(2), 'Average CPC']
+    [r.conversions, 'Conversions']
   ];
   $('repCards').innerHTML = cards.map(([v, l]) =>
     '<div class="rep-card"><span class="info">i</span><b>' + v + '</b><span>' + l + '</span></div>'
@@ -377,12 +366,11 @@ function renderRepCards(){
 }
 function renderChart(){
   const months = (REPORT && REPORT.months) || [];
-  const max = Math.max(1, ...months.map(m => Math.max(m.paid, m.organic, m.credits)));
+  const max = Math.max(1, ...months.map(m => Math.max(m.paid, m.organic)));
   $('repChart').innerHTML = '<div class="chart-bars">' + months.map(m => {
     const h = v => Math.round(v / max * 100);
     return '<div class="chart-col">' +
       '<div class="chart-stack">' +
-        '<i class="b-cred" style="height:' + h(m.credits) + '%" title="Credits: ' + Math.round(m.credits) + '"></i>' +
         '<i class="b-org" style="height:' + h(m.organic) + '%" title="Organic: ' + m.organic + '"></i>' +
         '<i class="b-paid" style="height:' + h(m.paid) + '%" title="Paid: ' + m.paid + '"></i>' +
       '</div><span>' + esc(m.label) + '</span></div>';
@@ -419,14 +407,13 @@ function renderTable(){
     '<td>' + esc(p.location || '—') + '</td>' +
     '<td class="num">' + p.impressions + '</td>' +
     '<td class="num">' + p.paidClicks + '</td>' +
-    '<td class="num">' + p.organicClicks + '</td>' +
-    '<td class="num">' + p.avgCpc.toFixed(2) + '</td></tr>'
-  ).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--dim);padding:26px">No page data yet — traffic to your profile will appear here.</td></tr>';
+    '<td class="num">' + p.organicClicks + '</td></tr>'
+  ).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--dim);padding:26px">No page data yet — traffic to your profile will appear here.</td></tr>';
 }
 $('exportCsv').addEventListener('click', () => {
   const rows = (REPORT && REPORT.topPages) || [];
-  const head = 'Page,Expertise,Location,Impressions,Paid clicks,Organic clicks,Avg. CPC';
-  const lines = rows.map(p => [p.page, p.expertise || '', p.location || '', p.impressions, p.paidClicks, p.organicClicks, p.avgCpc.toFixed(2)].join(','));
+  const head = 'Page,Expertise,Location,Impressions,Paid clicks,Organic clicks';
+  const lines = rows.map(p => [p.page, p.expertise || '', p.location || '', p.impressions, p.paidClicks, p.organicClicks].join(','));
   const blob = new Blob([[head].concat(lines).join('\n')], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
