@@ -233,7 +233,7 @@ function renderCampTabs(){
   }));
 }
 function campStatusClass(s){
-  return { Active: 's-active', Paused: 's-paused', Draft: 's-draft', Archived: 's-archived' }[s] || 's-draft';
+  return { Active: 's-active', Paused: 's-paused', Draft: 's-draft', Archived: 's-archived', Finished: 's-finished' }[s] || 's-draft';
 }
 function renderCampList(){
   const list = CAMPAIGNS.filter(c => campFilter === 'arch' ? c.status === 'Archived' : c.status !== 'Archived');
@@ -245,21 +245,25 @@ function renderCampList(){
   $('campList').innerHTML = list.map((c, i) => {
     const t = c.targets || {};
     const chips = [].concat(t.services || [], t.locations || [], t.languages || []);
-    const st = stats[c.id] || { impressions: 0, clicks: 0, boosted: chips.length };
+    const st = stats[c.id] || { impressions: 0, clicks: 0, boosted: chips.length, progress: 0, daysLeft: 0, finished: false };
     const ctr = st.impressions > 0 ? Math.round(st.clicks / st.impressions * 100) + '%' : '0%';
-    const active = c.status === 'Active';
-    return '<div class="camp-card">' +
+    const active = c.status === 'Active' && !st.finished;
+    const statusLabel = st.finished ? 'Finished' : c.status;
+    return '<div class="camp-card' + (st.finished ? ' done' : '') + '">' +
       '<div class="camp-top">' +
         '<div class="camp-title"><b>' + esc(c.name || ('Campaign #' + (i + 1))) + '</b>' +
-          '<span class="camp-status ' + campStatusClass(c.status) + '">' + esc(c.status) + '</span></div>' +
+          '<span class="camp-status ' + campStatusClass(statusLabel) + '">' + esc(statusLabel) + '</span></div>' +
         '<div class="camp-ctrl">' +
-          '<label class="switch" title="Toggle campaign"><input type="checkbox" data-camp-toggle="' + esc(c.id) + '"' + (active ? ' checked' : '') + '><span></span></label>' +
+          '<label class="switch" title="Toggle campaign"><input type="checkbox" data-camp-toggle="' + esc(c.id) + '"' + (active ? ' checked' : '') + (st.finished ? ' disabled' : '') + '><span></span></label>' +
           '<button class="icon-btn" data-camp-edit="' + esc(c.id) + '" title="Edit campaign">✎</button>' +
           '<button class="icon-btn danger" data-camp-del="' + esc(c.id) + '" title="Delete campaign">🗑</button>' +
         '</div>' +
       '</div>' +
       '<div class="camp-targets"><span class="lbl">Targets</span>' +
         '<div class="chips">' + chips.map(x => '<span class="chip static">' + esc(x) + '</span>').join('') + '</div></div>' +
+      '<div class="camp-progress"><span class="lbl">' + (st.finished ? 'Campaign finished' : 'Time remaining') + '</span>' +
+        '<div class="bar"><i style="width:' + (st.progress || 0) + '%"></i></div>' +
+        '<span class="cons-num">' + (st.finished ? 'Finished' : (st.daysLeft || 0) + ' days left') + '</span></div>' +
       '<div class="camp-metrics">' +
         '<div><b>' + st.boosted + '</b><span>Boosted directories</span></div>' +
         '<div><b>' + st.impressions + '</b><span>Impressions</span></div>' +
@@ -329,6 +333,7 @@ function openCampModal(c){
   window._editCampId = edit ? c.id : null;
   $('campModalTitle').textContent = edit ? 'Campaign settings' : 'Start new campaign';
   $('ccName').value = edit ? (c.name || '') : '';
+  $('ccDuration').value = edit ? (c.duration || 30) : 30;
   ccSel = edit
     ? { services: (c.targets.services || []).slice(), locations: (c.targets.locations || []).slice(), languages: (c.targets.languages || []).slice() }
     : { services: [], locations: [], languages: [] };
@@ -343,13 +348,14 @@ function closeCampModal(){ $('campModalBg').classList.remove('on'); }
 $('newCampaignBtn').addEventListener('click', () => openCampModal(null));
 $('ccCreate').addEventListener('click', async () => {
   const name = $('ccName').value.trim();
+  const duration = Math.max(1, Math.min(365, parseInt($('ccDuration').value, 10) || 30));
   const editing = !!window._editCampId;
   try{
     let res;
     if(editing){
-      res = await pmsPost({ action: 'campaignUpdate', token: TOKEN, id: window._editCampId, name, targets: ccSel });
+      res = await pmsPost({ action: 'campaignUpdate', token: TOKEN, id: window._editCampId, name, duration, targets: ccSel });
     }else{
-      res = await pmsPost({ action: 'campaignCreate', token: TOKEN, name, targets: ccSel });
+      res = await pmsPost({ action: 'campaignCreate', token: TOKEN, name, duration, targets: ccSel });
     }
     if(!res.ok) throw new Error(res.error || 'Save failed');
     closeCampModal();

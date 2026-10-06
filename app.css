@@ -207,6 +207,7 @@ section{padding:46px 0;position:relative;z-index:1}
 .s-paused{background:var(--amber-soft);color:#fcd34d}
 .s-draft{background:var(--surface3);color:var(--dim)}
 .s-archived{background:var(--red-soft);color:#fca5a5}
+.s-finished{background:var(--blue-soft);color:#93c5fd}
 .camp-ctrl{display:flex;align-items:center;gap:12px}
 .icon-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line2);background:var(--surface2);color:var(--muted);font-size:15px;transition:.14s;cursor:pointer;font-family:inherit}
 .icon-btn:hover{border-color:var(--blue2);color:var(--text)}
@@ -215,6 +216,14 @@ section{padding:46px 0;position:relative;z-index:1}
 .camp-targets{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}
 .camp-targets .lbl{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);padding-top:8px;flex:none}
 .chip.static{cursor:default;pointer-events:none}
+.camp-progress{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.camp-progress .lbl{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);flex:none}
+.camp-progress .bar{flex:1;height:8px;border-radius:99px;background:var(--surface3);overflow:hidden}
+.camp-progress .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--blue),var(--blue2));transition:width .5s ease}
+.camp-progress .cons-num{font-size:12px;font-weight:700;color:var(--muted);flex:none}
+.camp-card.done{border-color:rgba(16,185,129,.35)}
+.camp-card.done .camp-progress .bar i{background:var(--green)}
+.camp-card.done .camp-progress .cons-num{color:var(--green)}
 .camp-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;border-top:1px solid var(--line);padding-top:16px}
 .camp-metrics b{display:block;font-size:19px;font-weight:800;letter-spacing:-.4px}
 .camp-metrics span{font-size:11px;color:var(--dim);font-weight:600}
