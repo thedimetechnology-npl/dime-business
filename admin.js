@@ -255,6 +255,7 @@ function renderCampList(){
           '<span class="camp-status ' + campStatusClass(statusLabel) + '">' + esc(statusLabel) + '</span></div>' +
         '<div class="camp-ctrl">' +
           '<label class="switch" title="Toggle campaign"><input type="checkbox" data-camp-toggle="' + esc(c.id) + '"' + (active ? ' checked' : '') + (st.finished ? ' disabled' : '') + '><span></span></label>' +
+          '<button class="icon-btn" data-camp-logs="' + esc(c.id) + '" title="View activity log">▤</button>' +
           '<button class="icon-btn" data-camp-edit="' + esc(c.id) + '" title="Edit campaign">✎</button>' +
           '<button class="icon-btn danger" data-camp-del="' + esc(c.id) + '" title="Delete campaign">🗑</button>' +
         '</div>' +
@@ -275,6 +276,10 @@ function renderCampList(){
     const c = CAMPAIGNS.find(x => x.id === el.dataset.campToggle);
     if(!c) return;
     updateCampaign(c.id, { status: el.checked ? 'Active' : 'Paused' });
+  }));
+  document.querySelectorAll('[data-camp-logs]').forEach(el => el.addEventListener('click', () => {
+    const c = CAMPAIGNS.find(x => x.id === el.dataset.campLogs);
+    if(c) openCampLogs(c);
   }));
   document.querySelectorAll('[data-camp-edit]').forEach(el => el.addEventListener('click', () => {
     const c = CAMPAIGNS.find(x => x.id === el.dataset.campEdit);
@@ -313,6 +318,46 @@ async function updateCampaign(id, patch){
     toast('Campaign updated', 'ok');
   }catch(err){
     toast(err.message || 'Update failed', 'err');
+  }
+}
+
+function logElLabel(el){
+  if(!el) return '';
+  if(el.indexOf('convert:') === 0) return 'Started a brief';
+  if(el.indexOf('service:') === 0) return 'Service: ' + el.slice(8);
+  if(el.indexOf('stack:') === 0) return 'Stack: ' + el.slice(6);
+  if(el === 'message') return 'Sent a message';
+  if(el === 'website') return 'Visited website';
+  if(el === 'social') return 'Opened social link';
+  return el.replace(/:/g, ' · ');
+}
+async function openCampLogs(c){
+  $('drawerBody').innerHTML =
+    '<h2>' + esc(c.name || 'Campaign') + ' — activity log</h2>' +
+    '<div class="d-sub">Every impression and click attributed to this campaign, newest first. ' +
+      'Logs cover the campaign run: ' + esc(fmtDateTime(c.createdAt)) + ' → +' + (c.duration || 30) + ' days</div>' +
+    '<div class="d-sec"><h4>Summary</h4><div class="log-sum" id="logSum">Loading…</div></div>' +
+    '<div class="d-sec"><h4>Events</h4><div class="log-rows" id="logRows"><div class="log-empty">Loading activity…</div></div></div>';
+  $('drawerBg').classList.add('on');
+  $('drawer').classList.add('on');
+  try{
+    const res = await pmsPost({ action: 'campaignLogs', token: TOKEN, id: c.id });
+    if(!res.ok) throw new Error(res.error || 'Could not load activity log');
+    const rows = res.logs || [];
+    $('logSum').innerHTML = '<b>' + res.views + '</b> views · <b>' + res.clicks + '</b> clicks' +
+      (res.total > rows.length ? '<span class="log-more">latest ' + rows.length + ' of ' + res.total + '</span>' : '');
+    $('logRows').innerHTML = rows.length ? rows.map(ev => {
+      const where = ev.country || ev.location || '';
+      const clk = ev.type === 'click';
+      return '<div class="log-row">' +
+        '<span class="log-t">' + esc(fmtDateTime(ev.at)) + '</span>' +
+        '<span class="log-k ' + (clk ? 'clk' : 'imp') + '">' + (clk ? 'CLICK' : 'VIEW') + '</span>' +
+        '<span class="log-p">' + esc(ev.page || '/') + (ev.element ? ' — ' + esc(logElLabel(ev.element)) : '') + '</span>' +
+        (where ? '<span class="log-c">' + esc(where) + '</span>' : '') +
+      '</div>';
+    }).join('') : '<div class="log-empty">No activity yet — events appear here as visitors view or click your profile while the campaign runs.</div>';
+  }catch(err){
+    $('logRows').innerHTML = '<div class="log-empty">' + esc(err.message || 'Could not load logs') + '</div>';
   }
 }
 
