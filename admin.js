@@ -388,7 +388,9 @@ function renderConv(){
   ).join('');
 }
 function renderBreakdown(){
-  const rows = (REPORT && REPORT.clicksBreakdown) || [];
+  const rows = cbMode === 'locations'
+    ? ((REPORT && REPORT.clicksByCountry) || [])
+    : ((REPORT && REPORT.clicksBreakdown) || []);
   const max = Math.max(1, ...rows.map(r => r.paid + r.organic));
   $('repBreakdown').innerHTML = rows.length ? rows.map(r => {
     const tot = r.paid + r.organic;
