@@ -230,4 +230,5 @@ renderServices();
 renderWork();
 renderClients();
 renderReviews();
+seoInject();
 initTracking();

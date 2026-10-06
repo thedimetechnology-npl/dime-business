@@ -20,6 +20,31 @@ async function content(name){
   }catch(_){ return []; }
 }
 
+function setMeta(name, content){
+  let el = document.querySelector('meta[name="' + name + '"]');
+  if(!el){ el = document.createElement('meta'); el.name = name; document.head.appendChild(el); }
+  el.content = content;
+}
+async function seoInject(){
+  try{
+    const r = await fetch(PMS_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'seoMeta' }) });
+    if(!r.ok) return;
+    const j = await r.json();
+    const path = location.pathname.replace(/\/+$/, '') || '/';
+    const meta = (j.meta && (j.meta[path] || j.meta['/'])) || {};
+    if(meta.title) document.title = meta.title;
+    if(meta.description) setMeta('description', meta.description);
+    if(meta.keywords) setMeta('keywords', meta.keywords);
+    const schema = j.schema && (j.schema[path] || j.schema['/']);
+    if(schema){
+      const s = document.createElement('script');
+      s.type = 'application/ld+json';
+      s.textContent = schema;
+      document.head.appendChild(s);
+    }
+  }catch(_){}
+}
+
 function trackEvent(type, data){
   try{
     fetch(PMS_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },

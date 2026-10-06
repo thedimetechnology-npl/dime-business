@@ -57,6 +57,7 @@ function switchView(v){
   document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === 'view-' + v));
   if(v === 'campaigns') loadCampaigns();
   if(v === 'reporting') loadReport();
+  if(v === 'seo'){ loadSeo().then(() => { renderSeoTabs(); renderSeoPanels(); runAudit(); }); }
 }
 document.querySelectorAll('.side-nav a').forEach(a => a.addEventListener('click', () => switchView(a.dataset.view)));
 
@@ -438,6 +439,155 @@ document.querySelectorAll('#cbSeg button').forEach(b => b.addEventListener('clic
   document.querySelectorAll('#cbSeg button').forEach(x => x.classList.toggle('on', x === b));
   renderBreakdown();
 }));
+
+/* ══ SEO Tools ══ */
+let seoTab = 'audit';
+let SEO = { meta: {}, schema: {}, robots: '', sitemap: '' };
+const SEO_PAGES = ['/', '/brief'];
+
+function renderSeoTabs(){
+  const tabs = [['audit','Audit'],['meta','Meta Tags'],['sitemap','Sitemap & Robots'],['schema','Schema Markup']];
+  $('seoTabs').innerHTML = tabs.map(([k, l]) =>
+    '<button class="tab' + (seoTab === k ? ' on' : '') + '" data-t="' + k + '">' + l + '</button>'
+  ).join('');
+  document.querySelectorAll('#seoTabs .tab').forEach(el => el.addEventListener('click', () => {
+    seoTab = el.dataset.t; renderSeoTabs(); renderSeoPanels();
+  }));
+}
+function renderSeoPanels(){
+  ['seoAudit','seoMeta','seoSitemap','seoSchema'].forEach(id => { $(id).style.display = 'none'; });
+  const map = { audit: 'seoAudit', meta: 'seoMeta', sitemap: 'seoSitemap', schema: 'seoSchema' };
+  $(map[seoTab]).style.display = 'block';
+  if(seoTab === 'audit') renderAudit();
+  if(seoTab === 'meta') renderMetaForm();
+  if(seoTab === 'sitemap') renderSitemapForm();
+  if(seoTab === 'schema') renderSchemaForm();
+}
+async function loadSeo(){
+  if(!TOKEN) return;
+  try{
+    const res = await pmsPost({ action: 'seoMeta' });
+    if(res.ok) SEO = Object.assign(SEO, res);
+  }catch(_){}
+}
+async function runAudit(){
+  const btn = $('runAudit');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Auditing…';
+  try{
+    const res = await pmsPost({ action: 'seoAudit', token: TOKEN });
+    if(!res.ok) throw new Error(res.error || 'Audit failed');
+    SEO.robots = res.robots; SEO.sitemap = res.sitemap;
+    renderAudit(res);
+  }catch(err){
+    toast(err.message || 'Audit failed', 'err');
+  }finally{
+    btn.disabled = false; btn.textContent = 'Run audit';
+  }
+}
+function renderAudit(res){
+  const data = res || { results: [], robotsIssues: [], sitemapUrls: 0 };
+  const avg = data.results.length ? Math.round(data.results.reduce((s, r) => s + r.score, 0) / data.results.length) : 0;
+  const ringColor = avg >= 80 ? 'var(--green)' : avg >= 50 ? 'var(--amber)' : 'var(--red)';
+  let html = '<div class="seo-score"><div class="ring" style="--ring:' + ringColor + '"><b>' + avg + '</b><span>SEO score</span></div>' +
+    '<div class="seo-audit-pages">' + data.results.map(r =>
+      '<div class="seo-page"><div class="seo-page-head"><b>' + esc(r.page) + '</b><span class="pill ' + (r.score >= 80 ? 's-won' : r.score >= 50 ? 's-proposal' : 's-lost') + '"><span class="dot"></span>' + r.score + '/100</span></div>' +
+      '<div class="kv"><span class="k">Title</span><span class="v">' + esc(r.title || '—') + ' <i>(' + (r.title || '').length + ' chars)</i></span></div>' +
+      '<div class="kv"><span class="k">Description</span><span class="v">' + esc(r.desc || '—') + ' <i>(' + (r.desc || '').length + ' chars)</i></span></div>' +
+      '<div class="kv"><span class="k">Structure</span><span class="v">H1: ' + r.h1 + ' · H2: ' + r.h2 + ' · Images: ' + r.imgs + ' (' + r.imgAlt + ' with alt)</span></div>' +
+      (r.issues.length ? '<div class="seo-issues">' + r.issues.map(i =>
+        '<div class="seo-issue ' + i.level + '"><span>' + (i.level === 'err' ? '✕' : '!') + '</span>' + esc(i.msg) + '</div>').join('') + '</div>'
+        : '<div class="seo-issue ok"><span>✓</span>No issues — looks good!</div>') +
+      '</div>').join('') + '</div></div>';
+  if(data.robotsIssues && data.robotsIssues.length){
+    html += '<div class="seo-subhead">robots.txt & sitemap.xml</div><div class="seo-issues">' +
+      data.robotsIssues.map(i => '<div class="seo-issue ' + i.level + '"><span>' + (i.level === 'err' ? '✕' : '!') + '</span>' + esc(i.msg) + '</div>').join('') + '</div>';
+  }else{
+    html += '<div class="seo-subhead">robots.txt & sitemap.xml</div><div class="seo-issue ok"><span>✓</span>robots.txt and sitemap.xml are in place (' + (data.sitemapUrls || 0) + ' URLs).</div>';
+  }
+  $('seoAudit').innerHTML = html;
+}
+function renderMetaForm(){
+  $('seoMeta').innerHTML = '<h3>Meta tags</h3><p class="panel-sub">Saved meta overrides the page defaults. Changes apply to the live site immediately.</p>' +
+    SEO_PAGES.map(p => {
+      const m = SEO.meta[p] || {};
+      return '<div class="seo-card"><div class="seo-card-head"><b>' + esc(p) + '</b><span>' + (p === '/' ? 'Agency profile' : 'Project brief') + '</span></div>' +
+        '<div class="field"><label>Title <span class="cnt" data-cnt="title|' + esc(p) + '">' + (m.title || '').length + '/60</span></label>' +
+        '<input class="inp" data-meta="' + esc(p) + '|title" maxlength="120" value="' + esc(m.title || '') + '" placeholder="The Dime Technology — …"></div>' +
+        '<div class="field"><label>Description <span class="cnt" data-cnt="desc|' + esc(p) + '">' + (m.description || '').length + '/160</span></label>' +
+        '<textarea class="inp" data-meta="' + esc(p) + '|desc" rows="3" maxlength="320" placeholder="Describe the page in 150–160 characters…">' + esc(m.description || '') + '</textarea></div>' +
+        '<div class="field"><label>Keywords</label>' +
+        '<input class="inp" data-meta="' + esc(p) + '|keywords" maxlength="200" value="' + esc(m.keywords || '') + '" placeholder="web development, mobile app, Nepal"></div>' +
+        '</div>';
+    }).join('') +
+    '<div class="d-actions"><button class="btn btn-primary btn-sm" id="seoMetaSave">Save meta tags</button></div>';
+  document.querySelectorAll('[data-meta]').forEach(el => el.addEventListener('input', () => {
+    const [p, k] = el.dataset.meta.split('|');
+    const cnt = document.querySelector('[data-cnt="' + k + '|' + p + '"]');
+    if(cnt) cnt.textContent = el.value.length + '/' + (k === 'title' ? '60' : k === 'desc' ? '160' : '200');
+  }));
+  $('seoMetaSave').addEventListener('click', async () => {
+    const meta = {};
+    document.querySelectorAll('[data-meta]').forEach(el => {
+      const [p, k] = el.dataset.meta.split('|');
+      meta[p] = meta[p] || {};
+      meta[p][k] = el.value.trim();
+    });
+    try{
+      const res = await pmsPost({ action: 'seoSave', token: TOKEN, meta });
+      if(!res.ok) throw new Error(res.error || 'Save failed');
+      SEO.meta = meta;
+      toast('Meta tags saved — live now', 'ok');
+    }catch(err){ toast(err.message || 'Save failed', 'err'); }
+  });
+}
+function renderSitemapForm(){
+  $('seoSitemap').innerHTML = '<h3>Sitemap & robots.txt</h3><p class="panel-sub">Stored as the canonical version. The live files at the domain root update when you ask me to publish.</p>' +
+    '<div class="seo-card"><div class="seo-card-head"><b>sitemap.xml</b><span>' + (SEO.sitemap.match(/<loc>/g) || []).length + ' URLs</span></div>' +
+    '<textarea class="inp" id="seoSitemapTxt" rows="10" style="font-family:monospace;font-size:12px">' + esc(SEO.sitemap) + '</textarea></div>' +
+    '<div class="seo-card"><div class="seo-card-head"><b>robots.txt</b></div>' +
+    '<textarea class="inp" id="seoRobotsTxt" rows="6" style="font-family:monospace;font-size:12px">' + esc(SEO.robots) + '</textarea></div>' +
+    '<div class="d-actions"><button class="btn btn-primary btn-sm" id="seoSitemapSave">Save sitemap & robots</button></div>';
+  $('seoSitemapSave').addEventListener('click', async () => {
+    try{
+      const res = await pmsPost({ action: 'seoSave', token: TOKEN, sitemap: $('seoSitemapTxt').value, robots: $('seoRobotsTxt').value });
+      if(!res.ok) throw new Error(res.error || 'Save failed');
+      SEO.sitemap = $('seoSitemapTxt').value; SEO.robots = $('seoRobotsTxt').value;
+      toast('Saved — ask me to publish and I will update the live files', 'ok');
+    }catch(err){ toast(err.message || 'Save failed', 'err'); }
+  });
+}
+function renderSchemaForm(){
+  $('seoSchema').innerHTML = '<h3>Schema markup (JSON-LD)</h3><p class="panel-sub">Structured data helps search engines understand your pages. Injected into the page head.</p>' +
+    SEO_PAGES.map(p => {
+      const s = SEO.schema[p] || '';
+      return '<div class="seo-card"><div class="seo-card-head"><b>' + esc(p) + '</b><span>' + (p === '/' ? 'Organization + WebSite' : 'Service + FAQPage') + '</span></div>' +
+        '<textarea class="inp" data-schema="' + esc(p) + '" rows="10" style="font-family:monospace;font-size:12px" placeholder=\'{"@context":"https://schema.org","@type":"Organization",…}\'>' + esc(s) + '</textarea>' +
+        '<div class="seo-schema-status" data-status="' + esc(p) + '">' + (s ? '' : 'Empty — no schema on this page') + '</div></div>';
+    }).join('') +
+    '<div class="d-actions"><button class="btn btn-primary btn-sm" id="seoSchemaSave">Validate & save schema</button></div>';
+  document.querySelectorAll('[data-schema]').forEach(el => el.addEventListener('input', () => {
+    const st = document.querySelector('[data-status="' + el.dataset.schema + '"]');
+    if(!st) return;
+    try{ JSON.parse(el.value); st.innerHTML = '<span class="ok">✓ Valid JSON</span>'; }
+    catch(e){ st.innerHTML = '<span class="bad">✕ ' + esc(e.message) + '</span>'; }
+  }));
+  $('seoSchemaSave').addEventListener('click', async () => {
+    const schema = {};
+    document.querySelectorAll('[data-schema]').forEach(el => {
+      const v = el.value.trim();
+      if(!v) return;
+      try{ JSON.parse(v); schema[el.dataset.schema] = v; }
+      catch(e){ toast('Invalid JSON on ' + el.dataset.schema + ': ' + e.message, 'err'); throw e; }
+    });
+    try{
+      const res = await pmsPost({ action: 'seoSave', token: TOKEN, schema });
+      if(!res.ok) throw new Error(res.error || 'Save failed');
+      SEO.schema = schema;
+      toast('Schema saved — live now', 'ok');
+    }catch(err){ if(err.message !== 'Invalid JSON') toast(err.message || 'Save failed', 'err'); }
+  });
+}
+$('runAudit').addEventListener('click', runAudit);
 
 document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeDrawer(); closeCampModal(); } });
 

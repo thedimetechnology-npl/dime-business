@@ -237,5 +237,6 @@ document.getElementById('fSubcategory').addEventListener('change', e => {
     if(meta.ok) META = Object.assign(META, meta);
   }catch(_){ /* keep fallbacks */ }
   renderBudgets(); renderTimelines(); renderCategories();
+  seoInject();
   initTracking();
 })();
