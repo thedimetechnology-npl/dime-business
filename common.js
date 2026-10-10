@@ -51,6 +51,9 @@ function trackEvent(type, data){
       body: JSON.stringify(Object.assign({ action: 'track', type, site: location.host }, data || {})) }).catch(()=>{});
   }catch(_){}
 }
+function saveEmail(email){
+  return pmsPost({ action: 'saveEmail', email: email, site: location.host, page: location.pathname });
+}
 function initTracking(){
   trackEvent('pageview', {
     page: location.pathname,

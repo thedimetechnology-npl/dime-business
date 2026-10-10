@@ -41,6 +41,7 @@
         <a data-view="campaigns"><span class="si">◎</span>Campaigns</a>
         <a data-view="reporting"><span class="si">◫</span>Reporting</a>
         <a data-view="visitors"><span class="si">◈</span>Visitors</a>
+        <a data-view="emails"><span class="si">✉</span>Emails</a>
         <a data-view="seo"><span class="si">⌕</span>SEO Tools</a>
       </nav>
       <div class="side-foot">
@@ -191,6 +192,43 @@
         </div>
       </section>
 
+      <!-- ══ Emails ══ -->
+      <section class="view" id="view-emails">
+        <div class="page-head">
+          <div>
+            <h1>Email Subscribers</h1>
+            <p class="page-sub">Addresses collected by the Get Updates boxes on business.thedimetechnology.com.np and thedimetechnology.com.np.</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="loadEmails(true)">↻ Refresh</button>
+          <button class="btn btn-primary btn-sm" onclick="exportEmailsCsv()">⬇ Export CSV</button>
+        </div>
+        <div class="minis">
+          <div class="mini"><b id="eTotal">0</b><span>Total emails</span></div>
+          <div class="mini"><b id="eToday">0</b><span>New today</span></div>
+          <div class="mini"><b id="eCountries">0</b><span>Countries</span></div>
+          <div class="mini"><b id="eMain">0</b><span>Main site</span></div>
+        </div>
+        <div class="searchbar vis-bar">
+          <select class="inp" id="eSite" onchange="renderEmails()">
+            <option value="">Both websites</option>
+            <option value="business.thedimetechnology.com.np">business.thedimetechnology.com.np</option>
+            <option value="thedimetechnology.com.np">thedimetechnology.com.np</option>
+          </select>
+          <input class="inp" id="eQ" placeholder="Search — email, country, city, page, IP…" oninput="renderEmails()">
+        </div>
+        <div class="rep-panel">
+          <div style="overflow-x:auto">
+            <table class="rep-table" id="eTable">
+              <thead><tr>
+                <th>When</th><th>Email</th><th>Website</th><th>Page</th><th>Country</th><th>City</th><th>IP</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="panel-sub" id="eCount"></p>
+        </div>
+      </section>
+
       <!-- ══ SEO Tools ══ -->
       <section class="view" id="view-seo">
         <div class="page-head">
@@ -241,6 +279,6 @@
 </aside>
 
 <script src="common.js?v=20261010"></script>
-<script src="admin.js?v=20261010b"></script>
+<script src="admin.js?v=20261010c"></script>
 </body>
 </html>

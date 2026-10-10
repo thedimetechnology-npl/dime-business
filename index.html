@@ -163,10 +163,46 @@
       <a href="https://www.linkedin.com/in/shahidalam-nepal/" target="_blank" rel="noopener" data-track="social" data-location="World">LinkedIn</a>
       <a href="https://www.facebook.com/thedimetechnology/" target="_blank" rel="noopener" data-track="social" data-location="World">Facebook</a>
     </div>
+    <div class="foot-sub">
+      <b style="color:var(--text)">Get updates</b>
+      <form class="sub-row" id="subForm">
+        <input class="inp" id="subEmail" type="email" placeholder="you@email.com" autocomplete="email" maxlength="200" required>
+        <button class="btn btn-primary btn-sm" type="submit" data-track="subscribe">Subscribe</button>
+      </form>
+      <span class="sub-note" id="subNote">Product news and offers — unsubscribe anytime.</span>
+    </div>
   </div>
 </footer>
 
 <script src="common.js"></script>
 <script src="home.js"></script>
+<script>
+document.getElementById('subForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var note = document.getElementById('subNote');
+  var email = document.getElementById('subEmail').value.trim();
+  note.className = 'sub-note';
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){
+    note.textContent = 'Please enter a valid email address.';
+    note.className = 'sub-note err';
+    return;
+  }
+  note.textContent = 'Subscribing…';
+  try{
+    var res = await saveEmail(email);
+    if(res && res.ok){
+      note.textContent = 'Thanks — you are subscribed ✓';
+      note.className = 'sub-note ok';
+      e.target.reset();
+    }else{
+      note.textContent = (res && res.error) || 'Could not subscribe — please try again.';
+      note.className = 'sub-note err';
+    }
+  }catch(err){
+    note.textContent = 'Could not subscribe — please try again.';
+    note.className = 'sub-note err';
+  }
+});
+</script>
 </body>
 </html>

@@ -58,6 +58,7 @@ function switchView(v){
   if(v === 'campaigns') loadCampaigns();
   if(v === 'reporting') loadReport();
   if(v === 'visitors') loadVisitors();
+  if(v === 'emails') loadEmails();
   if(v === 'seo'){ loadSeo().then(() => { renderSeoTabs(); renderSeoPanels(); runAudit(); }); }
 }
 document.querySelectorAll('.side-nav a').forEach(a => a.addEventListener('click', () => switchView(a.dataset.view)));
@@ -769,6 +770,86 @@ function renderVisitors(){
     }).join('');
   }
   $('vCount').textContent = 'Showing ' + rows.length + ' of ' + total + ' events (latest 500 kept)';
+}
+
+/* ══ Emails ══ */
+let EMAILS = [];
+async function loadEmails(manual){
+  if(!TOKEN){ showApp(false); return; }
+  try{
+    const res = await pmsPost({ action: 'emailList', token: TOKEN });
+    if(!res.ok){
+      if(/unauthor/i.test(res.error || '')){ logout(); toast('Session expired — please sign in again', 'err'); return; }
+      throw new Error(res.error || 'Failed to load emails');
+    }
+    EMAILS = Array.isArray(res.emails) ? res.emails : [];
+    renderEmails();
+    if(manual) toast('Subscriber list updated');
+  }catch(err){ toast(err.message || 'Failed to load emails', 'err'); }
+}
+function emailsFiltered(){
+  const site = $('eSite').value, q = $('eQ').value.trim().toLowerCase();
+  return EMAILS.filter(e => {
+    if(isLocalhostSite(e.site)) return false;
+    if(!siteMatch(e.site, site)) return false;
+    if(q){
+      const hay = [e.email, e.page, countryName(e.country), e.country, e.city, e.region, e.ip, e.site].join(' ').toLowerCase();
+      if(hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+}
+function emailsCsv(rows){
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const head = ['When','Email','Website','Page','Country','City','Region','IP'].join(',');
+  const lines = rows.map(e => [e.at, e.email, e.site, e.page, countryName(e.country) || e.country, e.city, e.region, e.ip].map(q).join(','));
+  return [head].concat(lines).join('\n');
+}
+function exportEmailsCsv(){
+  const rows = emailsFiltered();
+  if(!rows.length){ toast('Nothing to export', 'err'); return; }
+  const blob = new Blob([emailsCsv(rows)], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'subscribers-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function renderEmails(){
+  const todayLocal = new Date().toLocaleDateString('en-CA');
+  let todayN = 0, mainN = 0;
+  const countries = new Set();
+  const visible = EMAILS.filter(e => !isLocalhostSite(e.site));
+  visible.forEach(e => {
+    const h = String(e.site || '').toLowerCase();
+    if(h === 'thedimetechnology.com.np' || h === 'www.thedimetechnology.com.np') mainN++;
+    if(e.country) countries.add(String(e.country).toUpperCase());
+    const d = new Date(e.at);
+    if(!isNaN(d) && d.toLocaleDateString('en-CA') === todayLocal) todayN++;
+  });
+  $('eTotal').textContent = visible.length;
+  $('eToday').textContent = todayN;
+  $('eCountries').textContent = countries.size;
+  $('eMain').textContent = mainN;
+  const rows = emailsFiltered();
+  const tb = document.querySelector('#eTable tbody');
+  if(!rows.length){
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--dim)">' +
+      (visible.length ? 'No emails match this filter' : 'No subscribers yet — the Get Updates boxes will collect them here') + '</td></tr>';
+  }else{
+    tb.innerHTML = rows.map(e =>
+      '<tr>' +
+        '<td style="white-space:nowrap">' + esc(fmtDateTime(e.at)) + '</td>' +
+        '<td style="font-weight:600">' + esc(e.email) + '</td>' +
+        '<td title="' + esc(String(e.site || '')) + '">' + esc(shortSite(e.site)) + '</td>' +
+        '<td>' + esc(e.page || '/') + '</td>' +
+        '<td>' + esc(countryName(e.country) || '—') + '</td>' +
+        '<td>' + esc(e.city || e.region || '—') + '</td>' +
+        '<td style="font-variant-numeric:tabular-nums">' + esc(e.ip || '—') + '</td>' +
+      '</tr>'
+    ).join('');
+  }
+  $('eCount').textContent = 'Showing ' + rows.length + ' of ' + visible.length + ' subscribers (latest 500 kept)';
 }
 
 // boot
