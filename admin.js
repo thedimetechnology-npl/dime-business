@@ -700,22 +700,14 @@ async function loadVisitors(manual){
     if(manual) toast('Visitor log updated');
   }catch(err){ toast(err.message || 'Failed to load visitors', 'err'); }
 }
-function renderVisitors(){
+function isLocalhostSite(site){
+  const s = String(site || '').toLowerCase();
+  return !s || s === 'localhost' || s.indexOf('localhost:') === 0 || s.indexOf('127.0.0.1') === 0 || s.indexOf('[::1]') === 0;
+}
+function visitorsFiltered(){
   const site = $('vSite').value, type = $('vType').value, q = $('vQ').value.trim().toLowerCase();
-  const todayLocal = new Date().toLocaleDateString('en-CA');
-  let todayN = 0;
-  const countries = new Set(), cities = new Set();
-  VISITORS.forEach(e => {
-    if(e.country) countries.add(String(e.country).toUpperCase());
-    if(e.city) cities.add(String(e.city));
-    const d = new Date(e.at);
-    if(!isNaN(d) && d.toLocaleDateString('en-CA') === todayLocal) todayN++;
-  });
-  $('vTotal').textContent = VISITORS.length;
-  $('vToday').textContent = todayN;
-  $('vCountries').textContent = countries.size;
-  $('vCities').textContent = cities.size;
-  const rows = VISITORS.filter(e => {
+  return VISITORS.filter(e => {
+    if(isLocalhostSite(e.site)) return false;
     if(type && String(e.type || '') !== type) return false;
     if(!siteMatch(e.site, site)) return false;
     if(q){
@@ -724,10 +716,44 @@ function renderVisitors(){
     }
     return true;
   });
+}
+function visitorsCsv(rows){
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const head = ['When','Website','Page','Type','Element','Country','City','Region','IP'].join(',');
+  const lines = rows.map(e => [e.at, e.site, e.page, e.type, e.element, countryName(e.country) || e.country, e.city, e.region, e.ip].map(q).join(','));
+  return [head].concat(lines).join('\n');
+}
+function exportVisitorsCsv(){
+  const rows = visitorsFiltered();
+  if(!rows.length){ toast('Nothing to export', 'err'); return; }
+  const blob = new Blob([visitorsCsv(rows)], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'visitors-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function renderVisitors(){
+  const todayLocal = new Date().toLocaleDateString('en-CA');
+  let todayN = 0, total = 0;
+  const countries = new Set(), cities = new Set();
+  VISITORS.forEach(e => {
+    if(isLocalhostSite(e.site)) return;
+    total++;
+    if(e.country) countries.add(String(e.country).toUpperCase());
+    if(e.city) cities.add(String(e.city));
+    const d = new Date(e.at);
+    if(!isNaN(d) && d.toLocaleDateString('en-CA') === todayLocal) todayN++;
+  });
+  $('vTotal').textContent = total;
+  $('vToday').textContent = todayN;
+  $('vCountries').textContent = countries.size;
+  $('vCities').textContent = cities.size;
+  const rows = visitorsFiltered();
   const tb = document.querySelector('#vTable tbody');
   if(!rows.length){
     tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--dim)">' +
-      (VISITORS.length ? 'No visits match these filters' : 'No visits recorded yet') + '</td></tr>';
+      (total ? 'No visits match these filters' : 'No visits recorded yet') + '</td></tr>';
   }else{
     tb.innerHTML = rows.map(e => {
       const host = String(e.site || '');
@@ -742,7 +768,7 @@ function renderVisitors(){
       '</tr>';
     }).join('');
   }
-  $('vCount').textContent = 'Showing ' + rows.length + ' of ' + VISITORS.length + ' events (latest 500 kept)';
+  $('vCount').textContent = 'Showing ' + rows.length + ' of ' + total + ' events (latest 500 kept)';
 }
 
 // boot
