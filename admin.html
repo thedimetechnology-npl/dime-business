@@ -8,7 +8,7 @@
   <link rel="icon" href="logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20261006b">
+  <link rel="stylesheet" href="app.css?v=20261010">
 </head>
 <body>
 
@@ -40,6 +40,7 @@
         <a class="on" data-view="dashboard"><span class="si">▦</span>Dashboard</a>
         <a data-view="campaigns"><span class="si">◎</span>Campaigns</a>
         <a data-view="reporting"><span class="si">◫</span>Reporting</a>
+        <a data-view="visitors"><span class="si">◈</span>Visitors</a>
         <a data-view="seo"><span class="si">⌕</span>SEO Tools</a>
       </nav>
       <div class="side-foot">
@@ -148,6 +149,47 @@
         </div>
       </section>
 
+      <!-- ══ Visitors ══ -->
+      <section class="view" id="view-visitors">
+        <div class="page-head">
+          <div>
+            <h1>Website Visitors</h1>
+            <p class="page-sub">Where and when business.thedimetechnology.com.np and thedimetechnology.com.np are visited — country, city and time of every event.</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="loadVisitors(true)">↻ Refresh</button>
+        </div>
+        <div class="minis">
+          <div class="mini"><b id="vTotal">0</b><span>Total events</span></div>
+          <div class="mini"><b id="vToday">0</b><span>Today</span></div>
+          <div class="mini"><b id="vCountries">0</b><span>Countries</span></div>
+          <div class="mini"><b id="vCities">0</b><span>Cities</span></div>
+        </div>
+        <div class="searchbar vis-bar">
+          <select class="inp" id="vSite" onchange="renderVisitors()">
+            <option value="">Both websites</option>
+            <option value="business.thedimetechnology.com.np">business.thedimetechnology.com.np</option>
+            <option value="thedimetechnology.com.np">thedimetechnology.com.np</option>
+          </select>
+          <select class="inp" id="vType" onchange="renderVisitors()">
+            <option value="">All events</option>
+            <option value="pageview">Pageviews</option>
+            <option value="click">Clicks</option>
+          </select>
+          <input class="inp" id="vQ" placeholder="Search — country, city, page, IP…" oninput="renderVisitors()">
+        </div>
+        <div class="rep-panel">
+          <div style="overflow-x:auto">
+            <table class="rep-table" id="vTable">
+              <thead><tr>
+                <th>When</th><th>Website</th><th>Page</th><th>Type</th><th>Country</th><th>City</th><th>IP</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="panel-sub" id="vCount"></p>
+        </div>
+      </section>
+
       <!-- ══ SEO Tools ══ -->
       <section class="view" id="view-seo">
         <div class="page-head">
@@ -197,7 +239,7 @@
   <div id="drawerBody"></div>
 </aside>
 
-<script src="common.js?v=20261006b"></script>
-<script src="admin.js?v=20261006b"></script>
+<script src="common.js?v=20261010"></script>
+<script src="admin.js?v=20261010"></script>
 </body>
 </html>

@@ -48,7 +48,7 @@ async function seoInject(){
 function trackEvent(type, data){
   try{
     fetch(PMS_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(Object.assign({ action: 'track', type }, data || {})) }).catch(()=>{});
+      body: JSON.stringify(Object.assign({ action: 'track', type, site: location.host }, data || {})) }).catch(()=>{});
   }catch(_){}
 }
 function initTracking(){

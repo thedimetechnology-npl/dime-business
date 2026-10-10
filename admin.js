@@ -57,6 +57,7 @@ function switchView(v){
   document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === 'view-' + v));
   if(v === 'campaigns') loadCampaigns();
   if(v === 'reporting') loadReport();
+  if(v === 'visitors') loadVisitors();
   if(v === 'seo'){ loadSeo().then(() => { renderSeoTabs(); renderSeoPanels(); runAudit(); }); }
 }
 document.querySelectorAll('.side-nav a').forEach(a => a.addEventListener('click', () => switchView(a.dataset.view)));
@@ -660,6 +661,89 @@ function renderSchemaForm(){
 $('runAudit').addEventListener('click', runAudit);
 
 document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeDrawer(); closeCampModal(); } });
+
+/* ══ Visitors ══ */
+let VISITORS = [];
+const GEO_REGIONS = (typeof Intl !== 'undefined' && Intl.DisplayNames) ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
+function countryName(code){
+  const c = String(code || '').trim().toUpperCase();
+  if(!c) return '';
+  if(GEO_REGIONS){ try{ const n = GEO_REGIONS.of(c); if(n) return n; }catch(_){} }
+  return c;
+}
+function siteMatch(site, want){
+  const s = String(site || '').toLowerCase();
+  if(!want) return true;
+  if(!s) return false;
+  if(s === want) return true;
+  if(!s.endsWith('.' + want)) return false;
+  if(want === 'thedimetechnology.com.np') return s.indexOf('business.') !== 0;
+  return true;
+}
+function shortSite(site){
+  const h = String(site || '').toLowerCase();
+  if(!h) return '—';
+  if(h === 'thedimetechnology.com.np' || h === 'www.thedimetechnology.com.np') return 'Main site';
+  if(h.indexOf('business.') === 0) return 'Business';
+  return h;
+}
+async function loadVisitors(manual){
+  if(!TOKEN){ showApp(false); return; }
+  try{
+    const res = await pmsPost({ action: 'trackList', token: TOKEN });
+    if(!res.ok){
+      if(/unauthor/i.test(res.error || '')){ logout(); toast('Session expired — please sign in again', 'err'); return; }
+      throw new Error(res.error || 'Failed to load visitors');
+    }
+    VISITORS = Array.isArray(res.events) ? res.events : [];
+    renderVisitors();
+    if(manual) toast('Visitor log updated');
+  }catch(err){ toast(err.message || 'Failed to load visitors', 'err'); }
+}
+function renderVisitors(){
+  const site = $('vSite').value, type = $('vType').value, q = $('vQ').value.trim().toLowerCase();
+  const todayLocal = new Date().toLocaleDateString('en-CA');
+  let todayN = 0;
+  const countries = new Set(), cities = new Set();
+  VISITORS.forEach(e => {
+    if(e.country) countries.add(String(e.country).toUpperCase());
+    if(e.city) cities.add(String(e.city));
+    const d = new Date(e.at);
+    if(!isNaN(d) && d.toLocaleDateString('en-CA') === todayLocal) todayN++;
+  });
+  $('vTotal').textContent = VISITORS.length;
+  $('vToday').textContent = todayN;
+  $('vCountries').textContent = countries.size;
+  $('vCities').textContent = cities.size;
+  const rows = VISITORS.filter(e => {
+    if(type && String(e.type || '') !== type) return false;
+    if(!siteMatch(e.site, site)) return false;
+    if(q){
+      const hay = [e.page, e.element, countryName(e.country), e.country, e.city, e.region, e.ip, e.site, e.type].join(' ').toLowerCase();
+      if(hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+  const tb = document.querySelector('#vTable tbody');
+  if(!rows.length){
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--dim)">' +
+      (VISITORS.length ? 'No visits match these filters' : 'No visits recorded yet') + '</td></tr>';
+  }else{
+    tb.innerHTML = rows.map(e => {
+      const host = String(e.site || '');
+      return '<tr>' +
+        '<td style="white-space:nowrap">' + esc(fmtDateTime(e.at)) + '</td>' +
+        '<td title="' + esc(host) + '">' + esc(shortSite(host)) + '</td>' +
+        '<td>' + esc(e.page || '/') + (e.element ? ' <span style="color:var(--dim)">· ' + esc(e.element) + '</span>' : '') + '</td>' +
+        '<td><span class="v-chip' + (e.type === 'click' ? ' v-click' : '') + '">' + esc(e.type || '') + '</span></td>' +
+        '<td>' + esc(countryName(e.country) || '—') + '</td>' +
+        '<td>' + esc(e.city || e.region || '—') + '</td>' +
+        '<td style="font-variant-numeric:tabular-nums">' + esc(e.ip || '—') + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+  $('vCount').textContent = 'Showing ' + rows.length + ' of ' + VISITORS.length + ' events (latest 500 kept)';
+}
 
 // boot
 if(TOKEN){ showApp(true); loadList(); } else { showApp(false); }
