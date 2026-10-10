@@ -712,7 +712,7 @@ function visitorsFiltered(){
     if(type && String(e.type || '') !== type) return false;
     if(!siteMatch(e.site, site)) return false;
     if(q){
-      const hay = [e.page, e.element, countryName(e.country), e.country, e.city, e.region, e.ip, e.site, e.type].join(' ').toLowerCase();
+      const hay = [e.page, e.element, countryName(e.country), e.country, e.city, e.region, e.ip, e.isp, e.site, e.type].join(' ').toLowerCase();
       if(hay.indexOf(q) === -1) return false;
     }
     return true;
@@ -720,8 +720,8 @@ function visitorsFiltered(){
 }
 function visitorsCsv(rows){
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const head = ['When','Website','Page','Type','Element','Country','City','Region','IP'].join(',');
-  const lines = rows.map(e => [e.at, e.site, e.page, e.type, e.element, countryName(e.country) || e.country, e.city, e.region, e.ip].map(q).join(','));
+  const head = ['When','Website','Page','Type','Element','Country','City','Region','IP','ISP'].join(',');
+  const lines = rows.map(e => [e.at, e.site, e.page, e.type, e.element, countryName(e.country) || e.country, e.city, e.region, e.ip, e.isp].map(q).join(','));
   return [head].concat(lines).join('\n');
 }
 function exportVisitorsCsv(){
@@ -753,7 +753,7 @@ function renderVisitors(){
   const rows = visitorsFiltered();
   const tb = document.querySelector('#vTable tbody');
   if(!rows.length){
-    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--dim)">' +
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--dim)">' +
       (total ? 'No visits match these filters' : 'No visits recorded yet') + '</td></tr>';
   }else{
     tb.innerHTML = rows.map(e => {
@@ -766,6 +766,7 @@ function renderVisitors(){
         '<td>' + esc(countryName(e.country) || '—') + '</td>' +
         '<td>' + esc(e.city || e.region || '—') + '</td>' +
         '<td style="font-variant-numeric:tabular-nums">' + esc(e.ip || '—') + '</td>' +
+        '<td style="color:var(--dim)" title="' + esc(e.isp || '') + '">' + esc(e.isp || '—') + '</td>' +
       '</tr>';
     }).join('');
   }
@@ -793,7 +794,7 @@ function emailsFiltered(){
     if(isLocalhostSite(e.site)) return false;
     if(!siteMatch(e.site, site)) return false;
     if(q){
-      const hay = [e.email, e.page, countryName(e.country), e.country, e.city, e.region, e.ip, e.site].join(' ').toLowerCase();
+      const hay = [e.email, e.page, countryName(e.country), e.country, e.city, e.region, e.ip, e.isp, e.site].join(' ').toLowerCase();
       if(hay.indexOf(q) === -1) return false;
     }
     return true;
@@ -801,8 +802,8 @@ function emailsFiltered(){
 }
 function emailsCsv(rows){
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const head = ['When','Email','Website','Page','Country','City','Region','IP'].join(',');
-  const lines = rows.map(e => [e.at, e.email, e.site, e.page, countryName(e.country) || e.country, e.city, e.region, e.ip].map(q).join(','));
+  const head = ['When','Email','Website','Page','Country','City','Region','IP','ISP'].join(',');
+  const lines = rows.map(e => [e.at, e.email, e.site, e.page, countryName(e.country) || e.country, e.city, e.region, e.ip, e.isp].map(q).join(','));
   return [head].concat(lines).join('\n');
 }
 function exportEmailsCsv(){
@@ -834,7 +835,7 @@ function renderEmails(){
   const rows = emailsFiltered();
   const tb = document.querySelector('#eTable tbody');
   if(!rows.length){
-    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--dim)">' +
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--dim)">' +
       (visible.length ? 'No emails match this filter' : 'No subscribers yet — the Get Updates boxes will collect them here') + '</td></tr>';
   }else{
     tb.innerHTML = rows.map(e =>
@@ -846,6 +847,7 @@ function renderEmails(){
         '<td>' + esc(countryName(e.country) || '—') + '</td>' +
         '<td>' + esc(e.city || e.region || '—') + '</td>' +
         '<td style="font-variant-numeric:tabular-nums">' + esc(e.ip || '—') + '</td>' +
+        '<td style="color:var(--dim)" title="' + esc(e.isp || '') + '">' + esc(e.isp || '—') + '</td>' +
       '</tr>'
     ).join('');
   }
