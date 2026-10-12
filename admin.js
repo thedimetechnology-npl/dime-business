@@ -3,7 +3,7 @@ let USERNAME = sessionStorage.getItem('briefUser') || '';
 let BRIEFS = [];
 let filter = 'All';
 let openId = null;
-let VIEW = 'dashboard';
+let VIEW = sessionStorage.getItem('briefView') || localStorage.getItem('briefView') || (location.hash.replace('#','')) || 'dashboard';
 let CAMPAIGNS = [];
 let campFilter = 'open';
 let REPORT = null;
@@ -11,7 +11,6 @@ let cbMode = 'services';
 const $ = id => document.getElementById(id);
 
 const CAMP_SERVICES = ['Development & Maintenance','Code Review & Optimization','Collaboration & Project Management','Support & Bug Fixes','Integration & Deployment','Innovation & Improvement','Software Development','Mobile App','Web Development','Cloud Consulting','DevOps','AI / ML','UI/UX Design','E-Commerce','Cyber Security','App Marketing'];
-const CAMP_LOCATIONS = ['World','UK','USA','Australia','India','Germany','Netherlands','UAE','Canada','Nepal','Lalitpur (NP)','Saudi Arabia','Japan'];
 const CAMP_LANGUAGES = ['English','Hindi','Nepali','German','Arabic','Japanese'];
 
 function showApp(on){
@@ -53,13 +52,21 @@ $('loginForm').addEventListener('submit', async e => {
 /* ── view switching ── */
 function switchView(v){
   VIEW = v;
+  try{ sessionStorage.setItem('briefView', v); localStorage.setItem('briefView', v); }catch(_){}
+  try{ history.replaceState(null, '', '#' + v); }catch(_){}
   document.querySelectorAll('.side-nav a').forEach(a => a.classList.toggle('on', a.dataset.view === v));
   document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === 'view-' + v));
-  if(v === 'campaigns') loadCampaigns();
-  if(v === 'reporting') loadReport();
-  if(v === 'visitors') loadVisitors();
-  if(v === 'emails') loadEmails();
-  if(v === 'seo'){ loadSeo().then(() => { renderSeoTabs(); renderSeoPanels(); runAudit(); }); }
+  try{
+    if(v === 'dashboard') loadList();
+    if(v === 'campaigns') loadCampaigns();
+    if(v === 'reporting') loadReport();
+    if(v === 'visitors') loadVisitors();
+    if(v === 'emails') loadEmails();
+    if(v === 'companies') loadCompanies();
+    if(v === 'social') loadSocial();
+    if(v === 'youtube') loadYTVideos();
+    if(v === 'seo'){ loadSeo().then(() => { renderSeoTabs(); renderSeoPanels(); runAudit(); }); }
+  }catch(_){}
 }
 document.querySelectorAll('.side-nav a').forEach(a => a.addEventListener('click', () => switchView(a.dataset.view)));
 
@@ -367,17 +374,166 @@ async function openCampLogs(c){
 }
 
 /* campaign create/edit modal */
-let ccSel = { services: [], locations: [], languages: [] };
-function renderCampChips(container, options, key){
-  $(container).innerHTML = options.map(o =>
-    '<button type="button" class="chip' + (ccSel[key].includes(o) ? ' on' : '') + '" data-cc="' + esc(o) + '">' + esc(o) + '</button>'
+let ccSel = { services: [], locations: [], languages: [], platforms: [] };
+function renderCampChips(id, list, key){
+  const el = $(id);
+  if(!el) return;
+  el.innerHTML = list.map(item =>
+    '<span class="chip' + (ccSel[key].indexOf(item) !== -1 ? ' on' : '') + '" data-v="' + esc(item) + '" title="Click to ' + (ccSel[key].indexOf(item) !== -1 ? 'remove' : 'add') + '">' + esc(item) + '</span>'
   ).join('');
-  document.querySelectorAll('#' + container + ' [data-cc]').forEach(el => el.addEventListener('click', () => {
-    const v = el.dataset.cc, i = ccSel[key].indexOf(v);
-    if(i > -1) ccSel[key].splice(i, 1); else ccSel[key].push(v);
-    el.classList.toggle('on');
+  el.querySelectorAll('.chip').forEach(ch => ch.addEventListener('click', () => {
+    const v = ch.dataset.v;
+    const idx = ccSel[key].indexOf(v);
+    if(idx === -1) ccSel[key].push(v);
+    else ccSel[key].splice(idx, 1);
+    ch.classList.toggle('on');
+    ch.title = 'Click to ' + (ch.classList.contains('on') ? 'remove' : 'add');
   }));
 }
+function renderPlatformChips(){
+  document.querySelectorAll('#ccPlatforms .chip').forEach(ch => {
+    const on = ccSel.platforms.indexOf(ch.dataset.v) !== -1;
+    ch.classList.toggle('on', on);
+    ch.title = 'Click to ' + (on ? 'remove' : 'add');
+  });
+}
+document.querySelectorAll('#ccPlatforms .chip').forEach(ch => ch.addEventListener('click', () => {
+  const v = ch.dataset.v;
+  const idx = ccSel.platforms.indexOf(v);
+  if(idx === -1) ccSel.platforms.push(v);
+  else ccSel.platforms.splice(idx, 1);
+  ch.classList.toggle('on');
+  ch.title = 'Click to ' + (ch.classList.contains('on') ? 'remove' : 'add');
+}));
+/* location cascade — continent → country → province → district → city */
+const CONT_NAMES = { AF: 'Africa', AS: 'Asia', EU: 'Europe', NA: 'North America', SA: 'South America', OC: 'Oceania', AN: 'Antarctica' };
+let LOC_INDEX = null;
+const LOC_CACHE = {};
+function locIndex(){
+  if(LOC_INDEX) return Promise.resolve(LOC_INDEX);
+  return fetch('locations/index.json').then(r => r.json()).then(j => { LOC_INDEX = j; return j; });
+}
+function locCountry(cc){
+  if(LOC_CACHE[cc]) return Promise.resolve(LOC_CACHE[cc]);
+  return fetch('locations/' + encodeURIComponent(cc) + '.json').then(r => r.json());
+}
+function fillLocSelect(sel, options, ph){
+  sel.innerHTML = '<option value="">' + ph + '</option>' + options.map(o => '<option value="' + esc(o.value) + '">' + esc(o.name) + '</option>').join('');
+  sel.disabled = options.length === 0;
+}
+function resetLocBelow(after){
+  const order = ['ccCont','ccCountry','ccProv','ccDist','ccCity'];
+  const ph = { ccCont: 'Continent…', ccCountry: 'Country…', ccProv: 'Province…', ccDist: 'District…', ccCity: 'City…' };
+  const start = order.indexOf(after);
+  if(start === -1) return;
+  for(let i = start + 1; i < order.length; i++){
+    fillLocSelect($(order[i]), [], ph[order[i]]);
+    $(order[i]).disabled = true;
+  }
+  $('ccLocAdd').disabled = !$('ccCountry').value;
+}
+function locPath(){
+  if(!$('ccCountry').value) return null;
+  const parts = [];
+  const cont = $('ccCont').value;
+  if(cont) parts.push(CONT_NAMES[cont] || cont);
+  let cName = $('ccCountry').value;
+  if(LOC_INDEX){
+    for(const c of LOC_INDEX.continents){
+      const row = c.countries.find(x => x.code === cName);
+      if(row){ cName = row.name; break; }
+    }
+  }
+  parts.push(cName);
+  const j = LOC_CACHE[$('ccCountry').value];
+  if(j){
+    const pv = $('ccProv').value;
+    if(pv !== ''){
+      const p = j.provinces.find(x => x.code === pv);
+      if(p){
+        if(p.name !== 'All') parts.push(p.name);
+        const dv = $('ccDist').value;
+        if(dv !== ''){
+          const d = p.districts.find(x => x.code === dv);
+          if(d){
+            if(d.name !== 'All') parts.push(d.name);
+            const ci = $('ccCity').value;
+            if(ci !== ''){
+              const name = d.cities[parseInt(ci, 10)];
+              if(name) parts.push(name);
+            }
+          }
+        }
+      }
+    }
+  }
+  return parts.join(' / ');
+}
+function renderLocChips(){
+  $('ccLocations').innerHTML = ccSel.locations.length
+    ? ccSel.locations.map((l, i) =>
+        '<span class="chip on" title="' + esc(l) + '">' + esc(l) + '<b class="chip-x" data-i="' + i + '" title="Remove">×</b></span>'
+      ).join('')
+    : '<span class="loc-empty">Pick from the lists above, then Add</span>';
+  const clearBtn = $('ccLocClear');
+  if(clearBtn) clearBtn.style.display = ccSel.locations.length > 0 ? '' : 'none';
+  document.querySelectorAll('#ccLocations .chip-x').forEach(x => x.addEventListener('click', () => {
+    ccSel.locations.splice(parseInt(x.dataset.i, 10), 1);
+    renderLocChips();
+  }));
+}
+try{
+$('ccCont').addEventListener('change', () => {
+  const cont = $('ccCont').value;
+  const c = cont && LOC_INDEX ? (LOC_INDEX.continents.find(x => x.code === cont) || { countries: [] }) : null;
+  fillLocSelect($('ccCountry'), c ? c.countries.map(x => ({ value: x.code, name: x.name })) : [], 'Country…');
+  resetLocBelow('ccCountry');
+});
+$('ccCountry').addEventListener('change', () => {
+  resetLocBelow('ccCountry');
+  const cc = $('ccCountry').value;
+  if(!cc) return;
+  locCountry(cc).then(j => {
+    LOC_CACHE[cc] = j;
+    if($('ccCountry').value === cc){
+      fillLocSelect($('ccProv'), (j.provinces || []).map(p => ({ value: p.code, name: p.name })), 'Province…');
+      $('ccLocAdd').disabled = false;
+    }
+  }).catch(() => {});
+});
+$('ccProv').addEventListener('change', () => {
+  resetLocBelow('ccProv');
+  const j = LOC_CACHE[$('ccCountry').value];
+  const pv = $('ccProv').value;
+  if(!j || pv === '') return;
+  const p = j.provinces.find(x => x.code === pv);
+  if(!p) return;
+  fillLocSelect($('ccDist'), (p.districts || []).map(d => ({ value: d.code, name: d.name })), 'District…');
+});
+$('ccDist').addEventListener('change', () => {
+  resetLocBelow('ccDist');
+  const j = LOC_CACHE[$('ccCountry').value];
+  const pv = $('ccProv').value;
+  const dv = $('ccDist').value;
+  if(!j || pv === '' || dv === '') return;
+  const p = j.provinces.find(x => x.code === pv);
+  const d = p ? p.districts.find(x => x.code === dv) : null;
+  if(!d) return;
+  fillLocSelect($('ccCity'), (d.cities || []).map((name, i) => ({ value: String(i), name })), 'City…');
+});
+$('ccLocAdd').addEventListener('click', () => {
+  const p = locPath();
+  if(!p) return;
+  if(ccSel.locations.indexOf(p) === -1) ccSel.locations.push(p);
+  renderLocChips();
+});
+locIndex().then(j => {
+  if(j && Array.isArray(j.continents)){
+    $('ccCont').innerHTML = '<option value="">Continent…</option>' +
+      j.continents.map(c => '<option value="' + esc(c.code) + '">' + esc(CONT_NAMES[c.code] || c.code) + '</option>').join('');
+  }
+}).catch(() => {});
+}catch(_){}
 function openCampModal(c){
   const edit = !!c;
   window._editCampId = edit ? c.id : null;
@@ -386,16 +542,22 @@ function openCampModal(c){
   const durEl = $('ccDuration');
   if(durEl) durEl.value = edit ? (c.duration || 30) : 30;
   ccSel = edit
-    ? { services: (c.targets.services || []).slice(), locations: (c.targets.locations || []).slice(), languages: (c.targets.languages || []).slice() }
-    : { services: [], locations: [], languages: [] };
+    ? { services: (c.targets.services || []).slice(), locations: (c.targets.locations || []).slice(), languages: (c.targets.languages || []).slice(), platforms: ((c.targets && c.targets.platforms) || []).slice() }
+    : { services: [], locations: [], languages: [], platforms: [] };
   renderCampChips('ccServices', CAMP_SERVICES, 'services');
-  renderCampChips('ccLocations', CAMP_LOCATIONS, 'locations');
+  renderLocChips();
   renderCampChips('ccLanguages', CAMP_LANGUAGES, 'languages');
+  renderPlatformChips();
+  if(!edit){
+    $('ccCont').value = '';
+    resetLocBelow('ccCont');
+  }
   $('ccErr').classList.remove('on');
   $('ccCreate').textContent = edit ? 'Save changes' : 'Create campaign';
   $('campModalBg').classList.add('on');
 }
 function closeCampModal(){ $('campModalBg').classList.remove('on'); }
+try{
 $('newCampaignBtn').addEventListener('click', () => openCampModal(null));
 $('ccCreate').addEventListener('click', async () => {
   const name = $('ccName').value.trim();
@@ -418,6 +580,7 @@ $('ccCreate').addEventListener('click', async () => {
     $('ccErr').classList.add('on');
   }
 });
+}catch(_){}
 
 /* ══ Reporting ══ */
 async function loadReport(silent){
@@ -494,6 +657,7 @@ function renderTable(){
     '<td class="num">' + p.organicClicks + '</td></tr>'
   ).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--dim);padding:26px">No page data yet — traffic to your profile will appear here.</td></tr>';
 }
+try{
 $('exportCsv').addEventListener('click', () => {
   const rows = (REPORT && REPORT.topPages) || [];
   const head = 'Page,Expertise,Location,Impressions,Paid clicks,Organic clicks';
@@ -510,6 +674,7 @@ document.querySelectorAll('#cbSeg button').forEach(b => b.addEventListener('clic
   document.querySelectorAll('#cbSeg button').forEach(x => x.classList.toggle('on', x === b));
   renderBreakdown();
 }));
+}catch(_){}
 
 /* ══ SEO Tools ══ */
 let seoTab = 'audit';
@@ -659,7 +824,7 @@ function renderSchemaForm(){
     }catch(err){ if(err.message !== 'Invalid JSON') toast(err.message || 'Save failed', 'err'); }
   });
 }
-$('runAudit').addEventListener('click', runAudit);
+try{ $('runAudit').addEventListener('click', runAudit); }catch(_){}
 
 document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeDrawer(); closeCampModal(); } });
 
@@ -705,14 +870,23 @@ function isLocalhostSite(site){
   const s = String(site || '').toLowerCase();
   return !s || s === 'localhost' || s.indexOf('localhost:') === 0 || s.indexOf('127.0.0.1') === 0 || s.indexOf('[::1]') === 0;
 }
+function visitorSource(e){
+  if(e.utm_source) return e.utm_source + (e.utm_medium ? ' (' + e.utm_medium + ')' : '');
+  if(e.referrer){
+    try{ return new URL(e.referrer).hostname; }catch(_){ return e.referrer.slice(0, 40); }
+  }
+  return '';
+}
+const EXCLUDED_IPS = ['103.1.92.2'];
 function visitorsFiltered(){
   const site = $('vSite').value, type = $('vType').value, q = $('vQ').value.trim().toLowerCase();
   return VISITORS.filter(e => {
     if(isLocalhostSite(e.site)) return false;
+    if(e.ip && EXCLUDED_IPS.indexOf(e.ip) !== -1) return false;
     if(type && String(e.type || '') !== type) return false;
     if(!siteMatch(e.site, site)) return false;
     if(q){
-      const hay = [e.page, e.element, countryName(e.country), e.country, e.city, e.region, e.ip, e.isp, e.site, e.type].join(' ').toLowerCase();
+      const hay = [e.page, e.element, countryName(e.country), e.country, e.city, e.region, e.ip, e.isp, e.device, e.site, e.type, visitorSource(e), e.utm_campaign].join(' ').toLowerCase();
       if(hay.indexOf(q) === -1) return false;
     }
     return true;
@@ -720,8 +894,8 @@ function visitorsFiltered(){
 }
 function visitorsCsv(rows){
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const head = ['When','Website','Page','Type','Element','Country','City','Region','IP','ISP'].join(',');
-  const lines = rows.map(e => [e.at, e.site, e.page, e.type, e.element, countryName(e.country) || e.country, e.city, e.region, e.ip, e.isp].map(q).join(','));
+  const head = ['When','Website','Page','Type','Element','Source','UTM Source','UTM Medium','UTM Campaign','Country','City','Region','IP','ISP','Device'].join(',');
+  const lines = rows.map(e => [e.at, e.site, e.page, e.type, e.element, visitorSource(e), e.utm_source, e.utm_medium, e.utm_campaign, countryName(e.country) || e.country, e.city, e.region, e.ip, e.isp, e.device].map(q).join(','));
   return [head].concat(lines).join('\n');
 }
 function exportVisitorsCsv(){
@@ -753,20 +927,23 @@ function renderVisitors(){
   const rows = visitorsFiltered();
   const tb = document.querySelector('#vTable tbody');
   if(!rows.length){
-    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--dim)">' +
+    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--dim)">' +
       (total ? 'No visits match these filters' : 'No visits recorded yet') + '</td></tr>';
   }else{
     tb.innerHTML = rows.map(e => {
       const host = String(e.site || '');
+      const src = visitorSource(e);
       return '<tr>' +
         '<td style="white-space:nowrap">' + esc(fmtDateTime(e.at)) + '</td>' +
         '<td title="' + esc(host) + '">' + esc(shortSite(host)) + '</td>' +
         '<td>' + esc(e.page || '/') + (e.element ? ' <span style="color:var(--dim)">· ' + esc(e.element) + '</span>' : '') + '</td>' +
         '<td><span class="v-chip' + (e.type === 'click' ? ' v-click' : '') + '">' + esc(e.type || '') + '</span></td>' +
+        '<td>' + (src ? '<span class="v-chip" style="background:rgba(99,102,241,.13);color:#5b5bd6" title="' + esc(e.utm_campaign || '') + '">' + esc(src) + '</span>' : '<span style="color:var(--dim)">—</span>') + '</td>' +
         '<td>' + esc(countryName(e.country) || '—') + '</td>' +
         '<td>' + esc(e.city || e.region || '—') + '</td>' +
         '<td style="font-variant-numeric:tabular-nums">' + esc(e.ip || '—') + '</td>' +
         '<td style="color:var(--dim)" title="' + esc(e.isp || '') + '">' + esc(e.isp || '—') + '</td>' +
+        '<td><span class="v-chip">' + esc(e.device || '—') + '</span></td>' +
       '</tr>';
     }).join('');
   }
@@ -792,9 +969,10 @@ function emailsFiltered(){
   const site = $('eSite').value, q = $('eQ').value.trim().toLowerCase();
   return EMAILS.filter(e => {
     if(isLocalhostSite(e.site)) return false;
+    if(e.ip && EXCLUDED_IPS.indexOf(e.ip) !== -1) return false;
     if(!siteMatch(e.site, site)) return false;
     if(q){
-      const hay = [e.email, e.page, countryName(e.country), e.country, e.city, e.region, e.ip, e.isp, e.site].join(' ').toLowerCase();
+      const hay = [e.email, e.page, countryName(e.country), e.country, e.city, e.region, e.ip, e.isp, e.device, e.site].join(' ').toLowerCase();
       if(hay.indexOf(q) === -1) return false;
     }
     return true;
@@ -802,8 +980,8 @@ function emailsFiltered(){
 }
 function emailsCsv(rows){
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const head = ['When','Email','Website','Page','Country','City','Region','IP','ISP'].join(',');
-  const lines = rows.map(e => [e.at, e.email, e.site, e.page, countryName(e.country) || e.country, e.city, e.region, e.ip, e.isp].map(q).join(','));
+  const head = ['When','Email','Website','Page','Country','City','Region','IP','ISP','Device'].join(',');
+  const lines = rows.map(e => [e.at, e.email, e.site, e.page, countryName(e.country) || e.country, e.city, e.region, e.ip, e.isp, e.device].map(q).join(','));
   return [head].concat(lines).join('\n');
 }
 function exportEmailsCsv(){
@@ -835,7 +1013,7 @@ function renderEmails(){
   const rows = emailsFiltered();
   const tb = document.querySelector('#eTable tbody');
   if(!rows.length){
-    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--dim)">' +
+    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--dim)">' +
       (visible.length ? 'No emails match this filter' : 'No subscribers yet — the Get Updates boxes will collect them here') + '</td></tr>';
   }else{
     tb.innerHTML = rows.map(e =>
@@ -848,14 +1026,884 @@ function renderEmails(){
         '<td>' + esc(e.city || e.region || '—') + '</td>' +
         '<td style="font-variant-numeric:tabular-nums">' + esc(e.ip || '—') + '</td>' +
         '<td style="color:var(--dim)" title="' + esc(e.isp || '') + '">' + esc(e.isp || '—') + '</td>' +
+        '<td><span class="v-chip">' + esc(e.device || '—') + '</span></td>' +
       '</tr>'
     ).join('');
   }
   $('eCount').textContent = 'Showing ' + rows.length + ' of ' + visible.length + ' subscribers (latest 500 kept)';
 }
 
+/* ══ Social Promoter ══ */
+let SOCIAL = [];
+let spPlatforms = [];
+const PLATFORM_NAMES = { linkedin: 'LinkedIn', facebook: 'Facebook', instagram: 'Instagram', reddit: 'Reddit', twitter: 'X (Twitter)', tiktok: 'TikTok', youtube: 'YouTube' };
+const SOCIAL_COMPOSE_URLS = {
+  linkedin: 'https://www.linkedin.com/feed/',
+  facebook: 'https://www.facebook.com/',
+  instagram: 'https://www.instagram.com/',
+  reddit: 'https://www.reddit.com/',
+  twitter: 'https://twitter.com/',
+  tiktok: 'https://www.tiktok.com/upload',
+  youtube: 'https://studio.youtube.com/channel/UC/videos/upload'
+};
+
+/* ══ Auto Boost ══ */
+let boostEnabled = false;
+let boostLastPostAt = null;
+let boostCount = 0;
+
+async function loadBoostStatus(){
+  try{
+    const res = await pmsPost({ action: 'boostStatus', token: TOKEN });
+    if(res.ok){
+      boostEnabled = res.enabled;
+      boostLastPostAt = res.lastPostAt;
+      boostCount = res.boostCount || 0;
+      updateBoostUI();
+    }
+  }catch(_){}
+}
+
+function updateBoostUI(){
+  const btn = $('boostToggle');
+  const status = $('boostStatus');
+  const info = $('boostInfo');
+  const queued = SOCIAL.filter(p => p.status === 'queued').length;
+  btn.textContent = boostEnabled ? '⏸ Stop Boost' : '🚀 Start Boost';
+  btn.className = boostEnabled ? 'btn btn-ghost btn-sm' : 'btn btn-primary btn-sm';
+  status.innerHTML = boostEnabled ? '<span style="color:#059669">● Active</span>' : '<span style="color:var(--dim)">○ Inactive</span>';
+  info.style.display = '';
+  $('boostQueueCount').textContent = 'Queue: ' + queued + ' posts';
+  $('boostDone').textContent = 'Boosted: ' + boostCount;
+  $('boostLastPost').textContent = boostLastPostAt ? 'Last: ' + new Date(boostLastPostAt).toLocaleTimeString() : 'Last: Never';
+  $('boostNextPost').textContent = boostEnabled && boostLastPostAt ? 'Next: ' + new Date(Date.parse(boostLastPostAt) + 30 * 60 * 1000).toLocaleTimeString() : '';
+}
+
+async function toggleBoost(){
+  try{
+    const res = await pmsPost({ action: 'boostToggle', token: TOKEN, enable: !boostEnabled });
+    if(!res.ok) throw new Error(res.error || 'Toggle failed');
+    boostEnabled = res.enabled;
+    boostLastPostAt = res.lastPostAt;
+    updateBoostUI();
+    toast(boostEnabled ? 'Auto Boost started — posts every 30 min' : 'Auto Boost stopped', 'ok');
+  }catch(err){ toast(err.message, 'err'); }
+}
+
+/* ══ Companies Database ══ */
+let COMPANIES = [];
+
+async function loadCompanies(manual){
+  if(!TOKEN){ showApp(false); return; }
+  try{
+    const res = await pmsPost({ action: 'companyList', token: TOKEN });
+    if(!res.ok){
+      if(/unauthor/i.test(res.error || '')){ logout(); toast('Session expired — please sign in again', 'err'); return; }
+      throw new Error(res.error || 'Failed to load companies');
+    }
+    COMPANIES = Array.isArray(res.companies) ? res.companies : [];
+    renderCompanies();
+    if(manual) toast('Company list updated');
+  }catch(err){ toast(err.message || 'Failed to load companies', 'err'); }
+}
+
+function companiesFiltered(){
+  const industry = $('coIndustry').value, country = $('coCountry').value, status = $('coStatus').value, q = $('coQ').value.trim().toLowerCase();
+  return COMPANIES.filter(c => {
+    if(industry && c.industry !== industry) return false;
+    if(country && c.country !== country) return false;
+    if(status && c.status !== status) return false;
+    if(q){
+      const hay = [c.name, c.url, c.website, c.industry, c.country, c.notes].join(' ').toLowerCase();
+      if(hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+}
+
+function renderCompanies(){
+  // Update stats
+  $('coTotal').textContent = COMPANIES.length;
+  $('coTargeted').textContent = COMPANIES.filter(c => c.status === 'targeted').length;
+  $('coFollowers').textContent = COMPANIES.reduce((sum, c) => sum + (c.followers || 0), 0).toLocaleString();
+  // Update filter dropdowns
+  const industries = [...new Set(COMPANIES.map(c => c.industry).filter(Boolean))].sort();
+  const countries = [...new Set(COMPANIES.map(c => c.country).filter(Boolean))].sort();
+  const indSel = $('coIndustry'), ctrySel = $('coCountry');
+  const curInd = indSel.value, curCtry = ctrySel.value;
+  indSel.innerHTML = '<option value="">All industries</option>' + industries.map(i => '<option value="' + esc(i) + '">' + esc(i) + '</option>').join('');
+  ctrySel.innerHTML = '<option value="">All countries</option>' + countries.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('');
+  indSel.value = curInd; ctrySel.value = curCtry;
+  // Render table
+  const rows = companiesFiltered();
+  const tb = document.querySelector('#coTable tbody');
+  if(!rows.length){
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--dim)">' +
+      (COMPANIES.length ? 'No companies match these filters' : 'No companies yet — click "+ Add Company" or use Bulk Import') + '</td></tr>';
+  }else{
+    const statusColors = { targeted: '#5b5bd6', contacted: '#d97706', client: '#059669', skip: '#9ca3af' };
+    tb.innerHTML = rows.map(c => {
+      const statusColor = statusColors[c.status] || '#5b5bd6';
+      return '<tr>' +
+        '<td><b>' + esc(c.name || 'Untitled') + '</b>' + (c.website ? '<br><a href="' + esc(c.website) + '" target="_blank" rel="noopener" style="font-size:11px;color:var(--dim)">' + esc(c.website) + '</a>' : '') + '</td>' +
+        '<td>' + (c.industry ? '<span class="v-chip">' + esc(c.industry) + '</span>' : '—') + '</td>' +
+        '<td>' + esc(c.country || '—') + '</td>' +
+        '<td style="text-align:right;font-variant-numeric:tabular-nums">' + (c.followers ? c.followers.toLocaleString() : '—') + '</td>' +
+        '<td>' + (c.url ? '<a href="' + esc(c.url) + '" target="_blank" rel="noopener" style="font-size:11px">LinkedIn ↗</a>' : '—') + '</td>' +
+        '<td><span class="v-chip" style="background:' + statusColor + '22;color:' + statusColor + '">' + esc(c.status || '—') + '</span></td>' +
+        '<td style="font-size:11px;color:var(--dim);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(c.notes || '') + '">' + esc(c.notes || '—') + '</td>' +
+        '<td style="white-space:nowrap">' +
+          '<button class="btn btn-ghost btn-sm" onclick="editCompany(\'' + esc(c.id) + '\')" title="Edit">✏️</button> ' +
+          '<button class="btn btn-ghost btn-sm" onclick="deleteCompany(\'' + esc(c.id) + '\')" title="Delete" style="color:var(--red)">🗑</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+  $('coCount').textContent = 'Showing ' + rows.length + ' of ' + COMPANIES.length + ' companies';
+}
+
+function openCompanyModal(c){
+  const edit = !!c;
+  window._editCompanyId = edit ? c.id : null;
+  $('companyModalTitle').textContent = edit ? 'Edit Company' : 'Add Company';
+  $('coName').value = edit ? (c.name || '') : '';
+  $('coUrl').value = edit ? (c.url || '') : '';
+  $('coWebsite').value = edit ? (c.website || '') : '';
+  $('coIndustryInput').value = edit ? (c.industry || '') : '';
+  $('coCountryInput').value = edit ? (c.country || '') : '';
+  $('coFollowers').value = edit && c.followers ? c.followers : '';
+  $('coSize').value = edit ? (c.size || '') : '';
+  $('coStatusInput').value = edit ? (c.status || 'targeted') : 'targeted';
+  $('coNotes').value = edit ? (c.notes || '') : '';
+  $('coErr').classList.remove('on');
+  $('coSave').textContent = edit ? 'Save changes' : 'Save Company';
+  $('companyModalBg').classList.add('on');
+}
+
+function closeCompanyModal(){ $('companyModalBg').classList.remove('on'); }
+
+function editCompany(id){
+  const c = COMPANIES.find(x => x.id === id);
+  if(c) openCompanyModal(c);
+}
+
+async function deleteCompany(id){
+  if(!confirm('Delete this company?')) return;
+  try{
+    const res = await pmsPost({ action: 'companyDelete', token: TOKEN, id });
+    if(!res.ok) throw new Error(res.error || 'Delete failed');
+    toast('Company deleted', 'ok');
+    await loadCompanies();
+  }catch(err){ toast(err.message, 'err'); }
+}
+
+$('coSave').addEventListener('click', async () => {
+  const name = $('coName').value.trim();
+  const url = $('coUrl').value.trim();
+  const website = $('coWebsite').value.trim();
+  const industry = $('coIndustryInput').value.trim();
+  const country = $('coCountryInput').value.trim();
+  const followers = $('coFollowers').value ? Number($('coFollowers').value) : 0;
+  const size = $('coSize').value;
+  const status = $('coStatusInput').value;
+  const notes = $('coNotes').value.trim();
+  if(!name){ $('coErr').textContent = 'Company name is required'; $('coErr').classList.add('on'); return; }
+  const editing = !!window._editCompanyId;
+  try{
+    let res;
+    if(editing){
+      res = await pmsPost({ action: 'companyUpdate', token: TOKEN, id: window._editCompanyId, name, url, website, industry, country, followers, size, status, notes });
+    }else{
+      res = await pmsPost({ action: 'companyCreate', token: TOKEN, name, url, website, industry, country, followers, size, status, notes });
+    }
+    if(!res.ok) throw new Error(res.error || 'Save failed');
+    closeCompanyModal();
+    await loadCompanies();
+    toast(editing ? 'Company updated' : 'Company added', 'ok');
+  }catch(err){
+    $('coErr').textContent = err.message || 'Save failed';
+    $('coErr').classList.add('on');
+  }
+});
+
+async function bulkImportCompanies(){
+  const input = $('coBulkInput').value.trim();
+  if(!input){ toast('Paste company data first', 'err'); return; }
+  const lines = input.split('\n').filter(l => l.trim());
+  let imported = 0;
+  for(const line of lines){
+    const parts = line.split('|').map(s => s.trim());
+    if(!parts[0]) continue;
+    try{
+      const res = await pmsPost({ action: 'companyCreate', token: TOKEN,
+        name: parts[0] || '', url: parts[1] || '', industry: parts[2] || '', country: parts[3] || '',
+        followers: parts[4] ? Number(parts[4]) : 0, status: 'targeted'
+      });
+      if(res.ok) imported++;
+    }catch(_){}
+  }
+  $('coBulkInput').value = '';
+  toast('Imported ' + imported + ' companies', 'ok');
+  await loadCompanies();
+}
+
+async function loadSocial(manual){
+  if(!TOKEN){ showApp(false); return; }
+  try{
+    const res = await pmsPost({ action: 'socialList', token: TOKEN });
+    if(!res.ok){
+      if(/unauthor/i.test(res.error || '')){ logout(); toast('Session expired — please sign in again', 'err'); return; }
+      throw new Error(res.error || 'Failed to load social posts');
+    }
+    SOCIAL = Array.isArray(res.posts) ? res.posts : [];
+    renderSocial();
+    loadBoostStatus();
+    if(manual) toast('Social queue updated');
+  }catch(err){ toast(err.message || 'Failed to load social posts', 'err'); }
+}
+
+function socialFiltered(){
+  const plat = $('sPlatform').value, status = $('sStatus').value, loc = $('sLocation').value, q = $('sQ').value.trim().toLowerCase();
+  return SOCIAL.filter(p => {
+    if(plat && p.platform !== plat) return false;
+    if(status && p.status !== status) return false;
+    if(loc){
+      const locs = p.locations && p.locations.length ? p.locations : (p.location ? [p.location] : []);
+      if(locs.indexOf(loc) === -1) return false;
+    }
+    if(q){
+      const hay = [p.title, p.content, p.url, p.profileUrl, p.tags, p.platform, (p.locations||[]).join(' '), p.location].join(' ').toLowerCase();
+      if(hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+}
+
+function renderSocial(){
+  let queued = 0, published = 0, failed = 0;
+  const platforms = new Set();
+  const locations = new Set();
+  SOCIAL.forEach(p => {
+    if(p.status === 'queued') queued++;
+    else if(p.status === 'published') published++;
+    else if(p.status === 'failed') failed++;
+    if(p.platform) platforms.add(p.platform);
+    if(p.location) locations.add(p.location);
+  });
+  $('sQueued').textContent = queued;
+  $('sPublished').textContent = published;
+  $('sFailed').textContent = failed;
+  $('sPlatforms').textContent = platforms.size;
+  // Update location filter dropdown
+  const locSel = $('sLocation');
+  const curLoc = locSel.value;
+  let locHtml = '<option value="">All locations</option>';
+  for(const l of Array.from(locations).sort()){
+    locHtml += '<option value="' + esc(l) + '">' + esc(l) + '</option>';
+  }
+  locSel.innerHTML = locHtml;
+  locSel.value = curLoc;
+  const rows = socialFiltered();
+  const tb = document.querySelector('#sTable tbody');
+  if(!rows.length){
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--dim)">' +
+      (SOCIAL.length ? 'No posts match these filters' : 'No posts queued yet — click "+ New post" to create one') + '</td></tr>';
+  }else{
+    tb.innerHTML = rows.map(p => {
+      const statusClass = p.status === 'published' ? 's-won' : p.status === 'failed' ? 's-lost' : 's-proposal';
+      const platName = PLATFORM_NAMES[p.platform] || p.platform || '—';
+      const locs = p.locations && p.locations.length ? p.locations : (p.location ? [p.location] : []);
+      const locHtml = locs.length
+        ? locs.slice(0, 3).map(c => '<span class="v-chip" style="background:rgba(16,185,129,.13);color:#059669;font-size:10px">📍 ' + esc(c) + '</span>').join(' ') + (locs.length > 3 ? ' <span style="color:var(--dim);font-size:10px">+' + (locs.length - 3) + '</span>' : '')
+        : '<span style="color:var(--dim)">🌍 Global</span>';
+      const impHtml = p.impressions
+        ? '<span class="v-chip" style="background:rgba(99,102,241,.13);color:#5b5bd6" title="' + esc(p.notes || '') + '">' + p.impressions.toLocaleString() + ' 👁</span>' + (p.engagement ? '<br><span style="font-size:10px;color:var(--dim)">' + p.engagement + ' eng</span>' : '')
+        : '<span style="color:var(--dim);font-size:11px">—</span>';
+      return '<tr>' +
+        '<td><b>' + esc(p.title || 'Untitled') + '</b>' + (p.notes ? '<br><span style="font-size:10px;color:var(--dim)">' + esc(p.notes) + '</span>' : '') + '</td>' +
+        '<td><span class="v-chip">' + esc(platName) + '</span></td>' +
+        '<td>' + locHtml + '</td>' +
+        '<td style="text-align:center">' + impHtml + '</td>' +
+        '<td><span class="pill ' + statusClass + '"><span class="dot"></span>' + esc(p.status || 'queued') + '</span></td>' +
+        '<td style="white-space:nowrap;font-size:12px">' + esc(p.scheduledAt ? fmtDateTime(p.scheduledAt) : '—') + '</td>' +
+        '<td style="white-space:nowrap">' +
+          (p.status === 'queued' ? '<button class="btn btn-primary btn-sm" onclick="copyAndOpenSocial(\'' + esc(p.id) + '\')" title="Copy content and open platform">📋</button> ' : '') +
+          (p.status === 'published' ? '<button class="btn btn-ghost btn-sm" onclick="quickImpressions(\'' + esc(p.id) + '\')" title="Update impressions">📊</button> ' : '') +
+          '<button class="btn btn-ghost btn-sm" onclick="editSocial(\'' + esc(p.id) + '\')" title="Edit post">✏️</button> ' +
+          '<button class="btn btn-ghost btn-sm" onclick="deleteSocial(\'' + esc(p.id) + '\')" title="Delete" style="color:var(--red)">🗑</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+  $('sCount').textContent = 'Showing ' + rows.length + ' of ' + SOCIAL.length + ' posts';
+}
+
+function openSocialModal(p){
+  const edit = !!p;
+  window._editSocialId = edit ? p.id : null;
+  $('socialModalTitle').textContent = edit ? 'Edit social post' : 'New social post';
+  $('spTitle').value = edit ? (p.title || '') : '';
+  $('spContent').value = edit ? (p.content || '') : '';
+  $('spUrl').value = edit ? (p.url || '') : '';
+  $('spProfileUrl').value = edit ? (p.profileUrl || '') : '';
+  $('spTags').value = edit ? (p.tags || '') : '';
+  $('spSchedule').value = edit && p.scheduledAt ? p.scheduledAt.slice(0, 16) : '';
+  $('spImpressions').value = edit && p.impressions ? p.impressions : '';
+  $('spEngagement').value = edit && p.engagement ? p.engagement : '';
+  $('spNotes').value = edit ? (p.notes || '') : '';
+  spPlatforms = edit && p.platforms ? p.platforms.slice() : (edit && p.platform ? [p.platform] : []);
+  document.querySelectorAll('#spPlatforms .chip').forEach(ch => {
+    const on = spPlatforms.indexOf(ch.dataset.v) !== -1;
+    ch.classList.toggle('on', on);
+  });
+  spLocations = edit && p.locations ? p.locations.slice() : (edit && p.location ? [p.location] : []);
+  $('spLocCont').value = '';
+  $('spLocCountry').innerHTML = '<option value="">All countries</option>';
+  renderSpLocChips();
+  initSpLocCascade();
+  $('spErr').classList.remove('on');
+  $('spSave').textContent = edit ? 'Save changes' : 'Queue post';
+  $('socialModalBg').classList.add('on');
+}
+
+let spLocations = [];
+let spLocIdx = null;
+
+async function ensureSpLocIdx(){
+  if(spLocIdx) return spLocIdx;
+  try{
+    const res = await fetch('locations/index.json');
+    const data = await res.json();
+    spLocIdx = data.continents || [];
+  }catch(_){ spLocIdx = []; }
+  return spLocIdx;
+}
+
+async function initSpLocCascade(){
+  await ensureSpLocIdx();
+  const contSel = $('spLocCont');
+  if(contSel.dataset.init) return;
+  let html = '<option value="">Select continent…</option>';
+  for(const cont of spLocIdx){
+    html += '<option value="' + esc(cont.code) + '">' + esc(cont.name) + '</option>';
+  }
+  contSel.innerHTML = html;
+  contSel.dataset.init = '1';
+  contSel.onchange = () => {
+    const cc = contSel.value;
+    const countrySel = $('spLocCountry');
+    if(!cc){
+      countrySel.innerHTML = '<option value="">Select country…</option>';
+      return;
+    }
+    const cont = spLocIdx.find(c => c.code === cc);
+    let ch = '<option value="">Select country…</option>';
+    ch += '<option value="__CONTINENT__">📍 All of ' + esc(cont ? cont.name : '') + '</option>';
+    for(const c of (cont ? cont.countries : [])){
+      ch += '<option value="' + esc(c.name) + '">' + esc(c.name) + '</option>';
+    }
+    countrySel.innerHTML = ch;
+  };
+  $('spLocCountry').onchange = () => {
+    const val = $('spLocCountry').value;
+    if(!val) return;
+    let name = val;
+    if(val === '__CONTINENT__'){
+      const cont = spLocIdx.find(c => c.code === contSel.value);
+      name = 'All ' + (cont ? cont.name : 'Continent');
+    }
+    if(name && spLocations.indexOf(name) === -1){
+      spLocations.push(name);
+      renderSpLocChips();
+    }
+    $('spLocCountry').value = '';
+  };
+}
+
+function addSpLocAllCountries(){
+  if(spLocations.indexOf('All Countries') === -1){
+    spLocations.push('All Countries');
+    renderSpLocChips();
+  }
+}
+
+function renderSpLocChips(){
+  $('spLocChips').innerHTML = spLocations.length
+    ? spLocations.map(c => {
+      const isGlobal = c === 'All Countries' || c.indexOf('All ') === 0;
+      const bg = isGlobal ? 'rgba(99,102,241,.13)' : 'rgba(16,185,129,.13)';
+      const color = isGlobal ? '#5b5bd6' : '#059669';
+      return '<span class="chip on" style="background:' + bg + ';color:' + color + '">' + esc(c) + '<span class="chip-x" onclick="removeSpLoc(\'' + esc(c) + '\')">✕</span></span>';
+    }).join('')
+    : '<span style="color:var(--dim);font-size:12px">No locations selected — defaults to global</span>';
+}
+
+function removeSpLoc(name){
+  const i = spLocations.indexOf(name);
+  if(i !== -1){ spLocations.splice(i, 1); renderSpLocChips(); }
+}
+
+function closeSocialModal(){ $('socialModalBg').classList.remove('on'); }
+
+document.querySelectorAll('#spPlatforms .chip').forEach(ch => ch.addEventListener('click', () => {
+  const v = ch.dataset.v;
+  const idx = spPlatforms.indexOf(v);
+  if(idx === -1) spPlatforms.push(v);
+  else spPlatforms.splice(idx, 1);
+  ch.classList.toggle('on');
+}));
+
+$('spSave').addEventListener('click', async () => {
+  const title = $('spTitle').value.trim();
+  const content = $('spContent').value.trim();
+  const url = $('spUrl').value.trim();
+  const profileUrl = $('spProfileUrl').value.trim();
+  const tags = $('spTags').value.trim();
+  const locations = spLocations.slice();
+  const schedule = $('spSchedule').value;
+  const impressions = $('spImpressions').value ? Number($('spImpressions').value) : 0;
+  const engagement = $('spEngagement').value ? Number($('spEngagement').value) : 0;
+  const notes = $('spNotes').value.trim();
+  if(!title){ $('spErr').textContent = 'Title is required'; $('spErr').classList.add('on'); return; }
+  if(!content){ $('spErr').textContent = 'Content is required'; $('spErr').classList.add('on'); return; }
+  if(!spPlatforms.length){ $('spErr').textContent = 'Select at least one platform'; $('spErr').classList.add('on'); return; }
+  const editing = !!window._editSocialId;
+  try{
+    let res;
+    if(editing){
+      res = await pmsPost({ action: 'socialUpdate', token: TOKEN, id: window._editSocialId, title, content, url, profileUrl, tags, locations, platforms: spPlatforms, scheduledAt: schedule || null, impressions, engagement, notes });
+    }else{
+      res = await pmsPost({ action: 'socialCreate', token: TOKEN, title, content, url, profileUrl, tags, locations, platforms: spPlatforms, scheduledAt: schedule || null, impressions, engagement, notes });
+    }
+    if(!res.ok) throw new Error(res.error || 'Save failed');
+    closeSocialModal();
+    await loadSocial();
+    toast(editing ? 'Post updated' : 'Post queued', 'ok');
+  }catch(err){
+    $('spErr').textContent = err.message || 'Save failed';
+    $('spErr').classList.add('on');
+  }
+});
+
+function editSocial(id){
+  const p = SOCIAL.find(x => x.id === id);
+  if(p) openSocialModal(p);
+}
+
+async function deleteSocial(id){
+  if(!confirm('Delete this post?')) return;
+  try{
+    const res = await pmsPost({ action: 'socialDelete', token: TOKEN, id });
+    if(!res.ok) throw new Error(res.error || 'Delete failed');
+    await loadSocial();
+    toast('Post deleted', 'ok');
+  }catch(err){ toast(err.message || 'Delete failed', 'err'); }
+}
+
+async function publishSocial(id){
+  try{
+    const res = await pmsPost({ action: 'socialPublish', token: TOKEN, id });
+    if(!res.ok) throw new Error(res.error || 'Publish failed');
+    await loadSocial();
+    toast('Post marked as published', 'ok');
+  }catch(err){ toast(err.message || 'Publish failed', 'err'); }
+}
+
+async function quickImpressions(id){
+  const p = SOCIAL.find(x => x.id === id);
+  if(!p) return;
+  const imp = prompt('Impressions (views):', p.impressions || '');
+  if(imp === null) return;
+  const eng = prompt('Engagement (likes/comments):', p.engagement || '');
+  if(eng === null) return;
+  const notes = prompt('Notes (optional):', p.notes || '');
+  if(notes === null) return;
+  try{
+    const res = await pmsPost({ action: 'socialUpdate', token: TOKEN, id, impressions: Number(imp)||0, engagement: Number(eng)||0, notes: notes.trim() });
+    if(!res.ok) throw new Error(res.error || 'Update failed');
+    toast('Impressions updated', 'ok');
+    await loadSocial();
+  }catch(err){ toast(err.message, 'err'); }
+}
+
+function copyAndOpenSocial(id){
+  const p = SOCIAL.find(x => x.id === id);
+  if(!p) return;
+  const plat = p.platform || 'linkedin';
+  const platName = PLATFORM_NAMES[plat] || plat;
+  let text = p.content || '';
+  if(p.url) text += '\n\n' + p.url;
+  if(p.tags) text += '\n\n' + p.tags;
+  const locs = p.locations && p.locations.length ? p.locations : (p.location ? [p.location] : []);
+  for(const c of locs){
+    text += ' #' + c.replace(/[^a-zA-Z]/g, '');
+  }
+  // Copy to clipboard
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(() => {
+      toast('Content copied — paste it on ' + platName, 'ok');
+    }).catch(() => {
+      fallbackCopy(text);
+      toast('Content copied — paste it on ' + platName, 'ok');
+    });
+  }else{
+    fallbackCopy(text);
+    toast('Content copied — paste it on ' + platName, 'ok');
+  }
+  // Open platform compose page
+  let composeUrl = SOCIAL_COMPOSE_URLS[plat] || 'https://www.linkedin.com/feed/';
+  if(plat === 'reddit' && p.url){
+    composeUrl = 'https://www.reddit.com/submit?url=' + encodeURIComponent(p.url) + '&title=' + encodeURIComponent(p.title || '');
+  }else if(plat === 'twitter'){
+    composeUrl = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text);
+  }
+  window.open(composeUrl, '_blank', 'noopener');
+}
+
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try{ document.execCommand('copy'); }catch(_){}
+  document.body.removeChild(ta);
+}
+
+function viewSocial(id){
+  const p = SOCIAL.find(x => x.id === id);
+  if(!p) return;
+  const platName = PLATFORM_NAMES[p.platform] || p.platform || 'Unknown';
+  const locs = p.locations && p.locations.length ? p.locations : (p.location ? [p.location] : []);
+  const locHtml = locs.map(c => '<span class="v-chip" style="background:rgba(16,185,129,.13);color:#059669">📍 ' + esc(c) + '</span>').join(' ');
+  let html = '<div style="padding:20px;max-width:600px">' +
+    '<h3 style="margin-bottom:12px">' + esc(p.title || 'Untitled') + '</h3>' +
+    '<div style="margin-bottom:12px"><span class="v-chip">' + esc(platName) + '</span> <span class="pill ' + (p.status === 'published' ? 's-won' : 's-proposal') + '"><span class="dot"></span>' + esc(p.status) + '</span>' + (locs.length ? ' ' + locHtml : '') + '</div>' +
+    '<div style="background:var(--surface2);border:1px solid var(--line2);border-radius:10px;padding:16px;margin-bottom:12px;white-space:pre-wrap;font-size:14px;line-height:1.6">' + esc(p.content || '') + '</div>';
+  if(p.url) html += '<div style="margin-bottom:8px"><b>Post URL:</b> <a href="' + esc(p.url) + '" target="_blank" rel="noopener">' + esc(p.url) + '</a></div>';
+  if(p.profileUrl) html += '<div style="margin-bottom:8px"><b>Profile URL:</b> <a href="' + esc(p.profileUrl) + '" target="_blank" rel="noopener">' + esc(p.profileUrl) + '</a></div>';
+  if(p.tags) html += '<div style="margin-bottom:8px"><b>Tags:</b> ' + esc(p.tags) + '</div>';
+  if(p.impressions || p.engagement) html += '<div style="margin-bottom:8px;display:flex;gap:16px">' + (p.impressions ? '<span><b>👁 Impressions:</b> ' + p.impressions.toLocaleString() + '</span>' : '') + (p.engagement ? '<span><b>💬 Engagement:</b> ' + p.engagement.toLocaleString() + '</span>' : '') + '</div>';
+  if(p.notes) html += '<div style="margin-bottom:8px"><b>Notes:</b> ' + esc(p.notes) + '</div>';
+  if(p.scheduledAt) html += '<div style="margin-bottom:8px"><b>Scheduled:</b> ' + esc(fmtDateTime(p.scheduledAt)) + '</div>';
+  if(p.publishedAt) html += '<div style="margin-bottom:8px"><b>Published:</b> ' + esc(fmtDateTime(p.publishedAt)) + '</div>';
+  html += '<div style="display:flex;gap:10px;margin-top:16px">' +
+    '<button class="btn btn-primary btn-sm" onclick="copyAndOpenSocial(\'' + esc(p.id) + '\');closeDrawer()">📋 Copy & Open</button>' +
+    (p.status === 'published' ? '<button class="btn btn-ghost btn-sm" onclick="quickImpressions(\'' + esc(p.id) + '\');closeDrawer()">📊 Update Stats</button>' : '') +
+    '<button class="btn btn-ghost btn-sm" onclick="closeDrawer()">Close</button>' +
+    '</div></div>';
+  $('drawerBody').innerHTML = html;
+  $('drawerBg').classList.add('on');
+  $('drawer').classList.add('on');
+}
+
+/* ══ YouTube Growth Studio ══ */
+let YT_VIDEOS = [];
+let ytGeneratedPosts = [];
+
+function toggleYTStudio(){
+  const el = $('ytStudio');
+  const btn = el.previousElementSibling;
+  if(el.style.display === 'none'){
+    el.style.display = '';
+    btn.textContent = '▲ Hide';
+  }else{
+    el.style.display = 'none';
+    btn.textContent = '▼ Show';
+  }
+}
+
+function ytExtractId(url){
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function generateYTPromo(){
+  const url = $('ytUrl').value.trim();
+  const title = $('ytTitle').value.trim();
+  const keywords = $('ytKeywords').value.split(',').map(s => s.trim()).filter(Boolean);
+  const type = $('ytType').value;
+  if(!url){ toast('Enter a YouTube URL', 'err'); return; }
+  if(!title){ toast('Enter a video title', 'err'); return; }
+  const videoId = ytExtractId(url);
+  const videoUrl = videoId ? 'https://www.youtube.com/watch?v=' + videoId : url;
+  const keywordsStr = keywords.join(', ') || 'software development';
+  const tags = keywords.slice(0, 5).map(k => '#' + k.replace(/[^a-zA-Z0-9]/g, '')).join(' ') + ' #TheDimeTechnology #YouTube';
+
+  // Generate platform-specific promotion posts
+  const posts = [];
+  const hook = title.length > 60 ? title.slice(0, 57) + '...' : title;
+
+  posts.push({
+    platform: 'linkedin',
+    title: 'New YouTube Video: ' + title,
+    content: `🎬 Just published a new video: "${title}"\n\nIn this video, we cover:\n• ${keywords.slice(0, 3).join('\n• ')}\n\nWatch here: ${videoUrl}\n\n#YouTube #ContentCreator ${tags}`,
+    url: videoUrl,
+    tags: tags
+  });
+
+  posts.push({
+    platform: 'twitter',
+    title: 'New video: ' + hook,
+    content: `🎥 New video is live!\n\n"${hook}"\n\n${keywords.slice(0, 2).map(k => '#' + k.replace(/[^a-zA-Z0-9]/g, '')).join(' ')}\n\nWatch: ${videoUrl}`,
+    url: videoUrl,
+    tags: tags
+  });
+
+  posts.push({
+    platform: 'facebook',
+    title: 'New Video: ' + title,
+    content: `🎬 New YouTube Video!\n\n"${title}"\n\n${type === 'tutorial' ? 'In this tutorial, you\'ll learn:' : 'In this video, we cover:'}\n• ${keywords.slice(0, 3).join('\n• ')}\n\n▶️ Watch now: ${videoUrl}\n\nDon't forget to like, comment, and subscribe! 🔔\n\n${tags}`,
+    url: videoUrl,
+    tags: tags
+  });
+
+  posts.push({
+    platform: 'reddit',
+    title: title,
+    content: `Hey everyone! I just published a new video on "${title}".\n\n${type === 'tutorial' ? 'This tutorial covers:' : 'Key topics:'}\n${keywords.slice(0, 4).map(k => '- ' + k).join('\n')}\n\nWould love your feedback! ${videoUrl}`,
+    url: videoUrl,
+    tags: tags
+  });
+
+  posts.push({
+    platform: 'instagram',
+    title: title,
+    content: `🎬 NEW VIDEO IS LIVE!\n\n"${title}"\n\n${type === 'tutorial' ? '📝 Tutorial' : '🎥 Video'} · ${keywords.slice(0, 2).join(' · ')}\n\n👉 Link in bio!\n\n${tags}`,
+    url: videoUrl,
+    tags: tags
+  });
+
+  ytGeneratedPosts = posts;
+  renderYTGenerated(videoUrl, title, keywordsStr, type);
+  renderYTSeoPreview(title, keywords, type, videoUrl);
+  saveYTVideo(url, title, keywords, type);
+  toast('Generated ' + posts.length + ' promotion posts', 'ok');
+}
+
+function renderYTGenerated(videoUrl, title, keywords, type){
+  $('ytGenerated').style.display = '';
+  $('ytPosts').innerHTML = '<div style="margin-bottom:8px"><button class="btn btn-primary btn-sm" onclick="queueAllYTPromo()">📋 Queue All Posts</button></div>' +
+    posts.map((p, i) => {
+      const platName = PLATFORM_NAMES[p.platform] || p.platform;
+      const short = p.content.length > 120 ? p.content.slice(0, 117) + '...' : p.content;
+      return '<div style="background:var(--surface2);border:1px solid var(--line2);border-radius:8px;padding:10px;display:flex;align-items:center;gap:12px">' +
+        '<span class="v-chip" style="min-width:70px">' + esc(platName) + '</span>' +
+        '<div style="flex:1;font-size:12px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(short) + '</div>' +
+        '<button class="btn btn-primary btn-sm" onclick="queueYTPromo(' + i + ')">+ Queue</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="copyYTPromo(' + i + ')">📋</button>' +
+      '</div>';
+    }).join('');
+}
+
+function renderYTSeoPreview(title, keywords, type, videoUrl){
+  const kwStr = keywords.join(', ');
+  const hashtags = keywords.slice(0, 5).map(k => '#' + k.replace(/[^a-zA-Z0-9]/g, '')).join(' ');
+  const desc = `${title}\n\nIn this ${type === 'tutorial' ? 'tutorial' : 'video'}, we cover ${kwStr}.\n\n🔗 Links:\n• Website: https://business.thedimetechnology.com.np\n• Video: ${videoUrl}\n\n📌 Topics:\n${keywords.map((k, i) => `${i + 1}. ${k}`).join('\n')}\n\n⏱️ Timestamps:\n0:00 - Introduction\n0:30 - Main Content\n${keywords.length > 1 ? '5:00 - ' + keywords[1] : ''}\n\n🔔 Subscribe for more content!\n\n${hashtags} #YouTube #TheDimeTechnology`;
+  const tagsList = [...keywords, 'youtube tutorial', 'software development', 'custom software', 'thedime technology', 'programming'].join(', ');
+  $('ytSeoPreview').innerHTML =
+    '<div style="margin-bottom:10px"><b style="color:var(--text)">Title (SEO):</b><br>' + esc(title.length > 60 ? title.slice(0, 57) + '...' : title) + '</div>' +
+    '<div style="margin-bottom:10px"><b style="color:var(--text)">Description:</b><br><pre style="white-space:pre-wrap;font-family:inherit;margin:4px 0;font-size:11px">' + esc(desc.slice(0, 400)) + '...</pre></div>' +
+    '<div style="margin-bottom:10px"><b style="color:var(--text)">Tags:</b><br><span style="font-size:11px">' + esc(tagsList) + '</span></div>' +
+    '<div><b style="color:var(--text)">Hashtags:</b><br><span style="font-size:11px">' + esc(hashtags + ' #YouTube #TheDimeTechnology') + '</span></div>';
+}
+
+function copyYTPromo(i){
+  const p = ytGeneratedPosts[i];
+  if(!p) return;
+  const platName = PLATFORM_NAMES[p.platform] || p.platform;
+  navigator.clipboard.writeText(p.content).then(() => toast('Copied ' + platName + ' post', 'ok')).catch(() => { fallbackCopy(p.content); toast('Copied ' + platName + ' post', 'ok'); });
+}
+
+async function queueYTPromo(i){
+  const p = ytGeneratedPosts[i];
+  if(!p) return;
+  try{
+    const res = await pmsPost({ action: 'socialCreate', token: TOKEN, title: p.title, content: p.content, url: p.url, tags: p.tags, platforms: [p.platform] });
+    if(!res.ok) throw new Error(res.error || 'Failed to queue');
+    toast('Queued ' + (PLATFORM_NAMES[p.platform] || p.platform) + ' post', 'ok');
+    await loadSocial();
+  }catch(err){ toast(err.message, 'err'); }
+}
+
+async function queueAllYTPromo(){
+  for(let i = 0; i < ytGeneratedPosts.length; i++){
+    await queueYTPromo(i);
+  }
+  toast('All ' + ytGeneratedPosts.length + ' posts queued!', 'ok');
+}
+
+/* ══ Channel Profile Booster ══ */
+let ytChannelPosts = [];
+
+function generateChannelBoost(){
+  const channelUrl = $('ytChannelUrl').value.trim();
+  const channelName = $('ytChannelName').value.trim() || 'The Dime Technology';
+  const niche = $('ytChannelNiche').value.trim() || 'Software Development';
+  const value = $('ytChannelValue').value.trim() || 'custom software tutorials and case studies';
+  if(!channelUrl){ toast('Enter your YouTube channel URL', 'err'); return; }
+  const handle = channelUrl.match(/@([a-zA-Z0-9_-]+)/) ? '@' + channelUrl.match(/@([a-zA-Z0-9_-]+)/)[1] : channelUrl;
+  const tags = niche.split(',').map(s => '#' + s.trim().replace(/[^a-zA-Z0-9]/g, '')).join(' ') + ' #YouTube #Subscribe #TheDimeTechnology';
+
+  const posts = [];
+
+  posts.push({
+    platform: 'linkedin',
+    title: 'Subscribe to ' + channelName + ' on YouTube',
+    content: `🎬 We're growing on YouTube!\n\n${channelName} shares ${value}.\n\n🔔 Subscribe: ${channelUrl}\n\nNew videos every week on ${niche}.\n\n${tags}`,
+    url: channelUrl,
+    tags: tags
+  });
+
+  posts.push({
+    platform: 'twitter',
+    title: 'Subscribe to our YouTube',
+    content: `🎥 We create ${value}\n\n🔔 Subscribe: ${channelUrl}\n\n${niche.split(',').map(s => '#' + s.trim().replace(/[^a-zA-Z0-9]/g, '')).join(' ')}`,
+    url: channelUrl,
+    tags: tags
+  });
+
+  posts.push({
+    platform: 'facebook',
+    title: 'Join us on YouTube',
+    content: `🎬 Want to learn ${niche}?\n\n${channelName} shares ${value}.\n\n🔔 Subscribe now: ${channelUrl}\n\nNew videos every week!\n\n${tags}`,
+    url: channelUrl,
+    tags: tags
+  });
+
+  posts.push({
+    platform: 'reddit',
+    title: 'Free ' + niche + ' content on YouTube',
+    content: `Hey! We share ${value} on our YouTube channel.\n\nIf you're interested in ${niche}, check it out: ${channelUrl}\n\nWould love your feedback on what topics to cover next!`,
+    url: channelUrl,
+    tags: tags
+  });
+
+  posts.push({
+    platform: 'instagram',
+    title: 'YouTube Channel',
+    content: `🎬 NEW ON YOUTUBE!\n\n${channelName}\n\n📺 ${value}\n\n👉 Link in bio!\n\n${tags}`,
+    url: channelUrl,
+    tags: tags
+  });
+
+  ytChannelPosts = posts;
+  renderChannelPosts();
+  toast('Generated ' + posts.length + ' channel promotion posts', 'ok');
+}
+
+function renderChannelPosts(){
+  $('ytChannelGenerated').style.display = '';
+  $('ytChannelPosts').innerHTML = '<div style="margin-bottom:8px"><button class="btn btn-primary btn-sm" onclick="queueAllChannelBoost()">📋 Queue All Posts</button></div>' +
+    ytChannelPosts.map((p, i) => {
+      const platName = PLATFORM_NAMES[p.platform] || p.platform;
+      const short = p.content.length > 100 ? p.content.slice(0, 97) + '...' : p.content;
+      return '<div style="background:var(--surface2);border:1px solid var(--line2);border-radius:8px;padding:10px;display:flex;align-items:center;gap:12px">' +
+        '<span class="v-chip" style="min-width:70px">' + esc(platName) + '</span>' +
+        '<div style="flex:1;font-size:12px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(short) + '</div>' +
+        '<button class="btn btn-primary btn-sm" onclick="queueChannelBoost(' + i + ')">+ Queue</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="copyChannelBoost(' + i + ')">📋</button>' +
+      '</div>';
+    }).join('');
+}
+
+function copyChannelBoost(i){
+  const p = ytChannelPosts[i];
+  if(!p) return;
+  const platName = PLATFORM_NAMES[p.platform] || p.platform;
+  navigator.clipboard.writeText(p.content).then(() => toast('Copied ' + platName + ' post', 'ok')).catch(() => { fallbackCopy(p.content); toast('Copied ' + platName + ' post', 'ok'); });
+}
+
+async function queueChannelBoost(i){
+  const p = ytChannelPosts[i];
+  if(!p) return;
+  try{
+    const res = await pmsPost({ action: 'socialCreate', token: TOKEN, title: p.title, content: p.content, url: p.url, tags: p.tags, platforms: [p.platform] });
+    if(!res.ok) throw new Error(res.error || 'Failed to queue');
+    toast('Queued ' + (PLATFORM_NAMES[p.platform] || p.platform) + ' post', 'ok');
+    await loadSocial();
+  }catch(err){ toast(err.message, 'err'); }
+}
+
+async function queueAllChannelBoost(){
+  for(let i = 0; i < ytChannelPosts.length; i++){
+    await queueChannelBoost(i);
+  }
+  toast('All ' + ytChannelPosts.length + ' channel posts queued!', 'ok');
+}
+
+async function loadYTVideos(manual){
+  try{
+    const res = await pmsPost({ action: 'ytList', token: TOKEN });
+    if(res.ok){
+      YT_VIDEOS = Array.isArray(res.videos) ? res.videos : [];
+      renderYTTable();
+      updateYTStats();
+      if(manual) toast('YouTube data refreshed');
+    }
+  }catch(_){}
+}
+
+function updateYTStats(){
+  $('ytVideos').textContent = YT_VIDEOS.length;
+  const promoCount = SOCIAL.filter(p => p.url && p.url.indexOf('youtube.com') !== -1).length;
+  $('ytPromos').textContent = promoCount;
+  $('ytQueued').textContent = SOCIAL.filter(p => p.status === 'queued').length;
+}
+
+function renderYTTable(){
+  const tb = document.querySelector('#ytTable tbody');
+  if(!YT_VIDEOS.length){
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--dim)">No videos added yet</td></tr>';
+    $('ytCount').textContent = '';
+    return;
+  }
+  tb.innerHTML = YT_VIDEOS.map(v => {
+    const promoCount = SOCIAL.filter(p => p.url && v.url && p.url.indexOf(v.url) !== -1).length;
+    return '<tr>' +
+      '<td><b>' + esc(v.title || 'Untitled') + '</b><br><a href="' + esc(v.url) + '" target="_blank" rel="noopener" style="font-size:11px;color:var(--dim)">' + esc(v.url) + '</a></td>' +
+      '<td><span class="v-chip">' + esc(v.type || '—') + '</span></td>' +
+      '<td style="font-size:11px;color:var(--dim)">' + esc((v.keywords || []).join(', ') || '—') + '</td>' +
+      '<td><span class="v-chip" style="background:rgba(99,102,241,.13);color:#5b5bd6">' + promoCount + ' posts</span></td>' +
+      '<td style="font-size:11px">' + esc(fmtDateTime(v.createdAt)) + '</td>' +
+      '<td><button class="btn btn-ghost btn-sm" onclick="deleteYTVideo(\'' + esc(v.id) + '\')" style="color:var(--red)">🗑</button></td>' +
+    '</tr>';
+  }).join('');
+  $('ytCount').textContent = YT_VIDEOS.length + ' videos tracked';
+}
+
+async function deleteYTVideo(id){
+  if(!confirm('Delete this video?')) return;
+  try{
+    const res = await pmsPost({ action: 'ytDelete', token: TOKEN, id });
+    if(!res.ok) throw new Error(res.error || 'Delete failed');
+    toast('Video deleted', 'ok');
+    await loadYTVideos();
+  }catch(err){ toast(err.message, 'err'); }
+}
+
+// Save video to tracker when generating promo
+async function saveYTVideo(url, title, keywords, type){
+  const videoId = ytExtractId(url);
+  const videoUrl = videoId ? 'https://www.youtube.com/watch?v=' + videoId : url;
+  try{
+    await pmsPost({ action: 'ytSave', token: TOKEN, url: videoUrl, title, keywords, type });
+    await loadYTVideos();
+  }catch(_){}
+}
+
 // boot
-if(TOKEN){ showApp(true); loadList(); } else { showApp(false); }
+if(TOKEN){
+  showApp(true);
+  const savedView = (location.hash && location.hash.length > 1) ? location.hash.slice(1) : (localStorage.getItem('briefView') || sessionStorage.getItem('briefView') || 'dashboard');
+  const validViews = ['dashboard','campaigns','reporting','visitors','emails','companies','seo','social','youtube'];
+  switchView(validViews.indexOf(savedView) !== -1 ? savedView : 'dashboard');
+}else{ showApp(false); }
+window.addEventListener('hashchange', () => {
+  if(!TOKEN) return;
+  const v = location.hash.slice(1);
+  if(v && v !== VIEW && ['dashboard','campaigns','reporting','visitors','emails','companies','seo','social','youtube'].indexOf(v) !== -1) switchView(v);
+});
 setInterval(() => {
   if(TOKEN && VIEW === 'dashboard' && $('appView').style.display !== 'none' && document.visibilityState === 'visible') loadList();
 }, 60000);

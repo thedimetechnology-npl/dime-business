@@ -47,8 +47,15 @@ async function seoInject(){
 
 function trackEvent(type, data){
   try{
+    const params = new URLSearchParams(location.search);
+    const utm = {
+      utm_source: params.get('utm_source') || '',
+      utm_medium: params.get('utm_medium') || '',
+      utm_campaign: params.get('utm_campaign') || ''
+    };
+    const referrer = document.referrer || '';
     fetch(PMS_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(Object.assign({ action: 'track', type, site: location.host }, data || {})) }).catch(()=>{});
+      body: JSON.stringify(Object.assign({ action: 'track', type, site: location.host, referrer: referrer, utm_source: utm.utm_source, utm_medium: utm.utm_medium, utm_campaign: utm.utm_campaign }, data || {})) }).catch(()=>{});
   }catch(_){}
 }
 function saveEmail(email){

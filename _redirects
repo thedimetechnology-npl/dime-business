@@ -1,0 +1,2 @@
+# Redirect Cloudflare Pages URL to custom domain
+/dime-business.pages.dev/* https://business.thedimetechnology.com.np/:splat 301

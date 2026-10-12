@@ -11,6 +11,11 @@
   <link rel="stylesheet" href="app.css?v=20261010">
 </head>
 <body>
+<script>
+if(location.hostname === 'dime-business.pages.dev'){
+  location.replace('https://business.thedimetechnology.com.np' + location.pathname + location.search);
+}
+</script>
 
 <!-- login -->
 <div class="login-wrap" id="loginView">
@@ -42,6 +47,9 @@
         <a data-view="reporting"><span class="si">◫</span>Reporting</a>
         <a data-view="visitors"><span class="si">◈</span>Visitors</a>
         <a data-view="emails"><span class="si">✉</span>Emails</a>
+        <a data-view="companies"><span class="si">🏢</span>Companies</a>
+        <a data-view="social"><span class="si">📡</span>Social Promoter</a>
+        <a data-view="youtube"><span class="si">▶</span>YouTube</a>
         <a data-view="seo"><span class="si">⌕</span>SEO Tools</a>
       </nav>
       <div class="side-foot">
@@ -177,13 +185,13 @@
             <option value="pageview">Pageviews</option>
             <option value="click">Clicks</option>
           </select>
-          <input class="inp" id="vQ" placeholder="Search — country, city, page, IP…" oninput="renderVisitors()">
+          <input class="inp" id="vQ" placeholder="Search — country, city, page, IP, device, source…" oninput="renderVisitors()">
         </div>
         <div class="rep-panel">
           <div style="overflow-x:auto">
             <table class="rep-table" id="vTable">
               <thead><tr>
-                <th>When</th><th>Website</th><th>Page</th><th>Type</th><th>Country</th><th>City</th><th>IP</th><th>ISP</th>
+                <th>When</th><th>Website</th><th>Page</th><th>Type</th><th>Source</th><th>Country</th><th>City</th><th>IP</th><th>ISP</th><th>Device</th>
               </tr></thead>
               <tbody></tbody>
             </table>
@@ -214,18 +222,257 @@
             <option value="business.thedimetechnology.com.np">business.thedimetechnology.com.np</option>
             <option value="thedimetechnology.com.np">thedimetechnology.com.np</option>
           </select>
-          <input class="inp" id="eQ" placeholder="Search — email, country, city, page, IP…" oninput="renderEmails()">
+          <input class="inp" id="eQ" placeholder="Search — email, country, city, page, IP, device…" oninput="renderEmails()">
         </div>
         <div class="rep-panel">
           <div style="overflow-x:auto">
             <table class="rep-table" id="eTable">
               <thead><tr>
-                <th>When</th><th>Email</th><th>Website</th><th>Page</th><th>Country</th><th>City</th><th>IP</th><th>ISP</th>
+                <th>When</th><th>Email</th><th>Website</th><th>Page</th><th>Country</th><th>City</th><th>IP</th><th>ISP</th><th>Device</th>
               </tr></thead>
               <tbody></tbody>
             </table>
           </div>
           <p class="panel-sub" id="eCount"></p>
+        </div>
+      </section>
+
+      <!-- ══ Companies Database ══ -->
+      <section class="view" id="view-companies">
+        <div class="page-head">
+          <div>
+            <h1>Companies Database</h1>
+            <p class="page-sub">Store and target LinkedIn company profiles for outreach and boosting.</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="loadCompanies(true)">↻ Refresh</button>
+          <button class="btn btn-primary btn-sm" onclick="openCompanyModal(null)">+ Add Company</button>
+        </div>
+
+        <!-- Stats -->
+        <div class="minis" style="margin-bottom:16px">
+          <div class="mini"><b id="coTotal">0</b><span>Total Companies</span></div>
+          <div class="mini"><b id="coTargeted">0</b><span>Targeted</span></div>
+          <div class="mini"><b id="coFollowers">0</b><span>Total Followers</span></div>
+        </div>
+
+        <!-- Filters -->
+        <div class="searchbar vis-bar">
+          <select class="inp" id="coIndustry" onchange="renderCompanies()">
+            <option value="">All industries</option>
+          </select>
+          <select class="inp" id="coCountry" onchange="renderCompanies()">
+            <option value="">All countries</option>
+          </select>
+          <select class="inp" id="coStatus" onchange="renderCompanies()">
+            <option value="">All statuses</option>
+            <option value="targeted">Targeted</option>
+            <option value="contacted">Contacted</option>
+            <option value="client">Client</option>
+            <option value="skip">Skip</option>
+          </select>
+          <input class="inp" id="coQ" placeholder="Search company, URL, notes…" oninput="renderCompanies()">
+        </div>
+
+        <!-- Company Table -->
+        <div class="rep-panel">
+          <div style="overflow-x:auto">
+            <table class="rep-table" id="coTable">
+              <thead><tr>
+                <th>Company</th><th>Industry</th><th>Country</th><th>Followers</th><th>LinkedIn</th><th>Status</th><th>Notes</th><th>Actions</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="panel-sub" id="coCount"></p>
+        </div>
+
+        <!-- Bulk Import -->
+        <div class="rep-panel" style="margin-top:16px">
+          <h3 style="margin:0 0 8px">📥 Bulk Import</h3>
+          <p class="panel-sub" style="margin:0 0 8px">Paste company data — one per line. Format: <code>Company Name | LinkedIn URL | Industry | Country | Followers</code></p>
+          <textarea class="inp" id="coBulkInput" rows="4" placeholder="Google | https://linkedin.com/company/google | Technology | United States | 25000000&#10;Microsoft | https://linkedin.com/company/microsoft | Technology | United States | 20000000"></textarea>
+          <button class="btn btn-primary btn-sm" onclick="bulkImportCompanies()" style="margin-top:8px">Import Companies</button>
+        </div>
+      </section>
+
+      <!-- ══ Social Promoter ══ -->
+      <section class="view" id="view-social">
+        <div class="page-head">
+          <div>
+            <h1>Social Promoter</h1>
+            <p class="page-sub">Queue and publish posts across all social platforms.</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="loadSocial(true)">↻ Refresh</button>
+          <button class="btn btn-primary btn-sm" onclick="openSocialModal(null)">+ New post</button>
+        </div>
+
+        <!-- Auto Boost -->
+        <div class="rep-panel" style="margin-bottom:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div>
+              <h3 style="margin:0 0 4px">🚀 Auto Boost</h3>
+              <p class="panel-sub" style="margin:0">Automatically publish one queued post every 30 minutes.</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <div id="boostStatus" style="font-size:12px;color:var(--dim)">Checking...</div>
+              <button class="btn btn-primary btn-sm" id="boostToggle" onclick="toggleBoost()">Start Boost</button>
+            </div>
+          </div>
+          <div id="boostInfo" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--line2);font-size:12px;color:var(--dim)">
+            <span id="boostDone" style="font-weight:600;color:var(--text)">Boosted: 0</span> · 
+            <span id="boostLastPost">Last: Never</span> · 
+            <span id="boostNextPost"></span> ·
+            <span id="boostQueueCount">Queue: 0 posts</span>
+          </div>
+        </div>
+
+        <!-- Social Posts Queue -->
+        <div class="minis">
+          <div class="mini"><b id="sQueued">0</b><span>Queued</span></div>
+          <div class="mini"><b id="sPublished">0</b><span>Published</span></div>
+          <div class="mini"><b id="sFailed">0</b><span>Failed</span></div>
+          <div class="mini"><b id="sPlatforms">0</b><span>Platforms</span></div>
+        </div>
+        <div class="searchbar vis-bar">
+          <select class="inp" id="sPlatform" onchange="renderSocial()">
+            <option value="">All platforms</option>
+            <option value="linkedin">LinkedIn</option>
+            <option value="facebook">Facebook</option>
+            <option value="instagram">Instagram</option>
+            <option value="reddit">Reddit</option>
+            <option value="twitter">X (Twitter)</option>
+            <option value="tiktok">TikTok</option>
+            <option value="youtube">YouTube</option>
+          </select>
+          <select class="inp" id="sLocation" onchange="renderSocial()">
+            <option value="">All locations</option>
+          </select>
+          <select class="inp" id="sStatus" onchange="renderSocial()">
+            <option value="">All statuses</option>
+            <option value="queued">Queued</option>
+            <option value="published">Published</option>
+            <option value="failed">Failed</option>
+          </select>
+          <input class="inp" id="sQ" placeholder="Search — title, content, URL, location…" oninput="renderSocial()">
+        </div>
+        <div class="rep-panel">
+          <div style="overflow-x:auto">
+            <table class="rep-table" id="sTable">
+              <thead><tr>
+                <th>Title</th><th>Platform</th><th>Locations</th><th>Impressions</th><th>Status</th><th>Scheduled</th><th>Actions</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="panel-sub" id="sCount"></p>
+        </div>
+      </section>
+
+      <!-- ══ YouTube Growth Studio ══ -->
+      <section class="view" id="view-youtube">
+        <div class="page-head">
+          <div>
+            <h1>YouTube Growth Studio</h1>
+            <p class="page-sub">Boost videos and channel profile with auto-generated promotion posts.</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="loadYTVideos(true)">↻ Refresh</button>
+        </div>
+
+        <!-- Stats -->
+        <div class="minis" style="margin-bottom:16px">
+          <div class="mini"><b id="ytVideos">0</b><span>Videos</span></div>
+          <div class="mini"><b id="ytPromos">0</b><span>Promos Generated</span></div>
+          <div class="mini"><b id="ytQueued">0</b><span>Posts Queued</span></div>
+        </div>
+
+        <!-- Add Video + SEO Preview -->
+        <div class="rep-panel" style="margin-bottom:20px">
+          <h3 style="margin:0 0 12px">🎬 Add YouTube Video</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div>
+              <div class="field">
+                <label>Video URL</label>
+                <input class="inp" id="ytUrl" placeholder="https://www.youtube.com/watch?v=..." maxlength="300">
+              </div>
+              <div class="field">
+                <label>Video Title</label>
+                <input class="inp" id="ytTitle" placeholder="e.g., Build a CRM in 30 Minutes" maxlength="120">
+              </div>
+              <div class="field">
+                <label>Target Keywords (comma-separated)</label>
+                <input class="inp" id="ytKeywords" placeholder="crm development, custom software, tutorial" maxlength="300">
+              </div>
+              <div class="field">
+                <label>Video Type</label>
+                <select class="inp" id="ytType">
+                  <option value="tutorial">Tutorial / How-to</option>
+                  <option value="case_study">Case Study</option>
+                  <option value="comparison">Comparison / Review</option>
+                  <option value="tips">Quick Tips</option>
+                  <option value="vlog">Behind the Scenes</option>
+                </select>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="generateYTPromo()" style="width:100%">🚀 Generate Promotion Pack</button>
+            </div>
+            <div>
+              <h4 style="margin:0 0 8px;font-size:13px;color:var(--dim)">YouTube SEO Preview</h4>
+              <div id="ytSeoPreview" style="background:var(--surface2);border:1px solid var(--line2);border-radius:10px;padding:14px;font-size:12px;line-height:1.6;min-height:280px;color:var(--dim)">
+                Add video details on the left → click "Generate Promotion Pack" to see optimized title, description, tags, and auto-generated social posts.
+              </div>
+            </div>
+          </div>
+          <!-- Generated Posts -->
+          <div id="ytGenerated" style="display:none;margin-top:16px">
+            <h4 style="margin:0 0 8px;font-size:13px;color:var(--dim)">📋 Generated Promotion Posts</h4>
+            <div id="ytPosts" style="display:grid;gap:8px"></div>
+          </div>
+        </div>
+
+        <!-- Channel Profile Booster -->
+        <div class="rep-panel" style="margin-bottom:20px">
+          <h3 style="margin:0 0 4px">👤 Channel Profile Booster</h3>
+          <p class="panel-sub" style="margin:0 0 12px">Generate posts to grow your YouTube subscribers.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+            <div class="field">
+              <label>Channel URL</label>
+              <input class="inp" id="ytChannelUrl" placeholder="https://youtube.com/@yourchannel" maxlength="300">
+            </div>
+            <div class="field">
+              <label>Channel Name</label>
+              <input class="inp" id="ytChannelName" placeholder="The Dime Technology" maxlength="100">
+            </div>
+            <div class="field">
+              <label>Channel Niche</label>
+              <input class="inp" id="ytChannelNiche" placeholder="Software Development, Tutorials" maxlength="200">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:12px;margin-top:8px">
+            <div class="field">
+              <label>What viewers learn</label>
+              <input class="inp" id="ytChannelValue" placeholder="Custom software, tutorials, case studies" maxlength="300">
+            </div>
+            <div class="field" style="display:flex;align-items:flex-end">
+              <button class="btn btn-primary btn-sm" onclick="generateChannelBoost()">🚀 Boost Channel</button>
+            </div>
+          </div>
+          <div id="ytChannelGenerated" style="display:none;margin-top:12px">
+            <h4 style="margin:0 0 8px;font-size:13px;color:var(--dim)">📋 Channel Promotion Posts</h4>
+            <div id="ytChannelPosts" style="display:grid;gap:8px"></div>
+          </div>
+        </div>
+
+        <!-- Videos Tracker -->
+        <div class="rep-panel">
+          <h3 style="margin:0 0 12px">📊 Your YouTube Videos</h3>
+          <div style="overflow-x:auto">
+            <table class="rep-table" id="ytTable">
+              <thead><tr>
+                <th>Video</th><th>Type</th><th>Keywords</th><th>Promos</th><th>Added</th><th>Actions</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="panel-sub" id="ytCount"></p>
         </div>
       </section>
 
@@ -259,14 +506,140 @@
     <div class="field"><label>Campaign name</label>
       <input class="inp" id="ccName" placeholder="Campaign #1" maxlength="80"></div>
     <div class="field"><label>Services</label><div class="chips" id="ccServices"></div></div>
-    <div class="field"><label>Locations</label><div class="chips" id="ccLocations"></div></div>
+    <div class="field"><label>Locations</label>
+      <div class="loc-build">
+        <select class="inp loc-sel" id="ccCont"><option value="">Continent…</option></select>
+        <select class="inp loc-sel" id="ccCountry" disabled><option value="">Country…</option></select>
+        <select class="inp loc-sel" id="ccProv" disabled><option value="">Province…</option></select>
+        <select class="inp loc-sel" id="ccDist" disabled><option value="">District…</option></select>
+        <select class="inp loc-sel" id="ccCity" disabled><option value="">City…</option></select>
+        <button class="btn btn-ghost btn-sm" id="ccLocAdd" disabled>+ Add</button>
+      </div>
+      <div class="chips" id="ccLocations"></div>
+      <button class="btn btn-ghost btn-sm" id="ccLocClear" style="margin-top:6px;display:none" onclick="ccSel.locations=[];renderLocChips()">Clear locations</button>
+    </div>
     <div class="field"><label>Languages</label><div class="chips" id="ccLanguages"></div></div>
+    <div class="field"><label>Social Media Platforms</label>
+      <div class="chips" id="ccPlatforms">
+        <span class="chip" data-v="linkedin">LinkedIn</span>
+        <span class="chip" data-v="facebook">Facebook</span>
+        <span class="chip" data-v="instagram">Instagram</span>
+        <span class="chip" data-v="reddit">Reddit</span>
+        <span class="chip" data-v="twitter">X (Twitter)</span>
+      </div>
+      <p class="panel-sub" style="margin:6px 0 0">Selected platforms will receive auto-generated posts based on your campaign targets.</p>
+    </div>
     <div class="field"><label>Duration (days)</label>
       <input class="inp" id="ccDuration" type="number" min="1" max="365" value="30"></div>
     <div class="err" id="ccErr"></div>
     <div class="d-actions">
       <button class="btn btn-primary btn-sm" id="ccCreate">Create campaign</button>
       <button class="btn btn-ghost btn-sm" onclick="closeCampModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- company modal -->
+<div class="modal-bg" id="companyModalBg" onclick="if(event.target===this) closeCompanyModal()">
+  <div class="modal">
+    <button class="x" onclick="closeCompanyModal()" title="Close">✕</button>
+    <h3 id="companyModalTitle">Add Company</h3>
+    <div class="field"><label>Company Name</label>
+      <input class="inp" id="coName" placeholder="e.g., Google" maxlength="150"></div>
+    <div class="field"><label>LinkedIn URL</label>
+      <input class="inp" id="coUrl" placeholder="https://linkedin.com/company/google" maxlength="500"></div>
+    <div class="field"><label>Website</label>
+      <input class="inp" id="coWebsite" placeholder="https://google.com" maxlength="300"></div>
+    <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><label>Industry</label>
+        <input class="inp" id="coIndustryInput" placeholder="e.g., Technology" maxlength="100"></div>
+      <div><label>Country</label>
+        <input class="inp" id="coCountryInput" placeholder="e.g., United States" maxlength="100"></div>
+    </div>
+    <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><label>Followers Count</label>
+        <input class="inp" id="coFollowers" type="number" min="0" placeholder="e.g., 50000"></div>
+      <div><label>Company Size</label>
+        <select class="inp" id="coSize">
+          <option value="">Unknown</option>
+          <option value="1-10">1-10</option>
+          <option value="11-50">11-50</option>
+          <option value="51-200">51-200</option>
+          <option value="201-500">201-500</option>
+          <option value="501-1000">501-1000</option>
+          <option value="1001-5000">1001-5000</option>
+          <option value="5001-10000">5001-10000</option>
+          <option value="10000+">10000+</option>
+        </select></div>
+    </div>
+    <div class="field"><label>Status</label>
+      <select class="inp" id="coStatusInput">
+        <option value="targeted">Targeted</option>
+        <option value="contacted">Contacted</option>
+        <option value="client">Client</option>
+        <option value="skip">Skip</option>
+      </select></div>
+    <div class="field"><label>Notes</label>
+      <textarea class="inp" id="coNotes" rows="2" placeholder="e.g., Decision maker is John Smith, interested in cloud migration" maxlength="500"></textarea></div>
+    <div class="err" id="coErr"></div>
+    <div class="d-actions">
+      <button class="btn btn-primary btn-sm" id="coSave">Save Company</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeCompanyModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- social post modal -->
+<div class="modal-bg" id="socialModalBg" onclick="if(event.target===this) closeSocialModal()">
+  <div class="modal">
+    <button class="x" onclick="closeSocialModal()" title="Close">✕</button>
+    <h3 id="socialModalTitle">New social post</h3>
+    <div class="field"><label>Title</label>
+      <input class="inp" id="spTitle" placeholder="Post title" maxlength="120"></div>
+    <div class="field"><label>Content</label>
+      <textarea class="inp" id="spContent" rows="4" placeholder="Post text — write value-first content…" maxlength="2000"></textarea></div>
+    <div class="field"><label>Post URL (link in post)</label>
+      <input class="inp" id="spUrl" placeholder="https://business.thedimetechnology.com.np/blog/..." maxlength="500"></div>
+    <div class="field"><label>Profile URL (your profile/page)</label>
+      <input class="inp" id="spProfileUrl" placeholder="https://www.linkedin.com/company/thedimetechnology" maxlength="500"></div>
+    <div class="field"><label>Hashtags</label>
+      <input class="inp" id="spTags" placeholder="#SoftwareDevelopment #WebDevelopment #Nepal" maxlength="300"></div>
+    <div class="field"><label>Target Locations (multi-select)</label>
+      <div class="loc-build" id="spLocBuild">
+        <select class="inp loc-sel" id="spLocCont">
+          <option value="">🌍 Select continent…</option>
+        </select>
+        <select class="inp loc-sel" id="spLocCountry">
+          <option value="">Select country…</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="addSpLocAllCountries()" title="Add all countries">🌍 All Countries</button>
+      </div>
+      <div class="chips" id="spLocChips" style="margin-top:8px"></div>
+    </div>
+    <div class="field"><label>Platforms</label>
+      <div class="chips" id="spPlatforms">
+        <span class="chip" data-v="linkedin">LinkedIn</span>
+        <span class="chip" data-v="facebook">Facebook</span>
+        <span class="chip" data-v="instagram">Instagram</span>
+        <span class="chip" data-v="reddit">Reddit</span>
+        <span class="chip" data-v="twitter">X (Twitter)</span>
+        <span class="chip" data-v="tiktok">TikTok</span>
+        <span class="chip" data-v="youtube">YouTube</span>
+      </div></div>
+    <div class="field"><label>Schedule (UTC)</label>
+      <input class="inp" id="spSchedule" type="datetime-local"></div>
+    <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><label>Impressions (manual)</label>
+        <input class="inp" id="spImpressions" type="number" min="0" placeholder="e.g., 450"></div>
+      <div><label>Engagement (likes/comments)</label>
+        <input class="inp" id="spEngagement" type="number" min="0" placeholder="e.g., 25"></div>
+    </div>
+    <div class="field"><label>Notes</label>
+      <input class="inp" id="spNotes" placeholder="e.g., Good engagement in Australia" maxlength="300"></div>
+    <div class="err" id="spErr"></div>
+    <div class="d-actions">
+      <button class="btn btn-primary btn-sm" id="spSave">Queue post</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeSocialModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -279,6 +652,6 @@
 </aside>
 
 <script src="common.js?v=20261010"></script>
-<script src="admin.js?v=20261010d"></script>
+<script src="admin.js?v=20261011s"></script>
 </body>
 </html>
