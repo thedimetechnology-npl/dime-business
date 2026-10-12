@@ -300,10 +300,22 @@ if(location.hostname === 'dime-business.pages.dev'){
         <div class="page-head">
           <div>
             <h1>Social Promoter</h1>
-            <p class="page-sub">Queue and publish posts across all social platforms.</p>
+            <p class="page-sub">Add your posts → community likes/comments → boost impressions.</p>
           </div>
           <button class="btn btn-ghost btn-sm" onclick="loadSocial(true)">↻ Refresh</button>
           <button class="btn btn-primary btn-sm" onclick="openSocialModal(null)">+ New post</button>
+        </div>
+
+        <!-- Boost Requests -->
+        <div class="rep-panel" style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 style="margin:0">🚀 Boost Requests</h3>
+            <button class="btn btn-primary btn-sm" onclick="openBoostRequestModal()">+ Add My Post</button>
+          </div>
+          <p class="panel-sub" style="margin:0 0 12px">Add your social media post link here. Other users will see it and engage with it to boost your impressions.</p>
+          <div id="boostRequestsList" style="display:grid;gap:8px">
+            <div style="text-align:center;padding:20px;color:var(--dim)">Loading boost requests...</div>
+          </div>
         </div>
 
         <!-- Social Posts Queue -->
@@ -515,6 +527,40 @@ if(location.hostname === 'dime-business.pages.dev'){
     <div class="d-actions">
       <button class="btn btn-primary btn-sm" id="ccCreate">Create campaign</button>
       <button class="btn btn-ghost btn-sm" onclick="closeCampModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Boost Request Modal -->
+<div class="modal-bg" id="boostReqModalBg" onclick="if(event.target===this) closeBoostRequestModal()">
+  <div class="modal">
+    <button class="x" onclick="closeBoostRequestModal()" title="Close">✕</button>
+    <h3>Add Your Post for Boost</h3>
+    <div class="field"><label>Post Title</label>
+      <input class="inp" id="brTitle" placeholder="e.g., FortiSIEM Setup Guide" maxlength="200"></div>
+    <div class="field"><label>Post Link</label>
+      <input class="inp" id="brUrl" placeholder="https://www.linkedin.com/posts/..." maxlength="500"></div>
+    <div class="field"><label>Platform</label>
+      <select class="inp" id="brPlatform">
+        <option value="linkedin">LinkedIn</option>
+        <option value="facebook">Facebook</option>
+        <option value="instagram">Instagram</option>
+        <option value="twitter">X (Twitter)</option>
+        <option value="reddit">Reddit</option>
+        <option value="youtube">YouTube</option>
+        <option value="tiktok">TikTok</option>
+      </select></div>
+    <div class="field"><label>What you want from community</label>
+      <select class="inp" id="brEngagement">
+        <option value="like">👍 Like</option>
+        <option value="comment">💬 Comment</option>
+        <option value="share">🔄 Share</option>
+        <option value="all">👍💬🔄 Like + Comment + Share</option>
+      </select></div>
+    <div class="err" id="brErr"></div>
+    <div class="d-actions">
+      <button class="btn btn-primary btn-sm" id="brSubmit" onclick="submitBoostRequest()">Add to Boost Queue</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeBoostRequestModal()">Cancel</button>
     </div>
   </div>
 </div>

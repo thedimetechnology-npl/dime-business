@@ -63,7 +63,7 @@ function switchView(v){
     if(v === 'visitors') loadVisitors();
     if(v === 'emails') loadEmails();
     if(v === 'companies') loadCompanies();
-    if(v === 'social') loadSocial();
+    if(v === 'social'){ loadSocial(); loadBoostRequests(); }
     if(v === 'youtube') loadYTVideos();
     if(v === 'seo'){ loadSeo().then(() => { renderSeoTabs(); renderSeoPanels(); runAudit(); }); }
   }catch(_){}
@@ -1202,6 +1202,105 @@ async function bulkImportCompanies(){
   $('coBulkInput').value = '';
   toast('Imported ' + imported + ' companies', 'ok');
   await loadCompanies();
+}
+
+/* ══ Boost Requests ══ */
+let BOOST_REQUESTS = [];
+
+async function loadBoostRequests(){
+  if(!TOKEN){ showApp(false); return; }
+  try{
+    const res = await pmsPost({ action: 'boostRequestList', token: TOKEN });
+    if(!res.ok){
+      if(/unauthor/i.test(res.error || '')){ logout(); toast('Session expired — please sign in again', 'err'); return; }
+      throw new Error(res.error || 'Failed to load boost requests');
+    }
+    BOOST_REQUESTS = Array.isArray(res.requests) ? res.requests : [];
+    renderBoostRequests();
+  }catch(err){ toast(err.message || 'Failed to load boost requests', 'err'); }
+}
+
+function renderBoostRequests(){
+  const list = $('boostRequestsList');
+  if(!list) return;
+  if(!BOOST_REQUESTS.length){
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--dim)">No boost requests yet. Add your post to get engagement from the community.</div>';
+    return;
+  }
+  list.innerHTML = BOOST_REQUESTS.map(r => {
+    const platName = PLATFORM_NAMES[r.platform] || r.platform;
+    const engagementLabel = { like: '👍 Like', comment: '💬 Comment', share: '🔄 Share', all: '👍💬🔄 All' }[r.engagement] || r.engagement;
+    const isEngaged = r.engagedBy && r.engagedBy.length;
+    const engagedCount = isEngaged ? r.engagedBy.length : 0;
+    return '<div style="background:var(--surface2);border:1px solid var(--line2);border-radius:8px;padding:12px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:start;gap:12px">' +
+        '<div style="flex:1">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
+            '<span class="v-chip">' + esc(platName) + '</span>' +
+            '<b>' + esc(r.title || 'Untitled') + '</b>' +
+          '</div>' +
+          '<div style="font-size:12px;color:var(--dim);margin-bottom:4px">Wants: ' + engagementLabel + '</div>' +
+          '<a href="' + esc(r.url) + '" target="_blank" style="font-size:12px;color:var(--blue);word-break:break-all">' + esc(r.url) + '</a>' +
+        '</div>' +
+        '<div style="text-align:right;white-space:nowrap">' +
+          '<div style="font-size:12px;color:var(--dim);margin-bottom:4px">' + engagedCount + ' engaged</div>' +
+          '<button class="btn btn-primary btn-sm" onclick="engageWithPost(\'' + esc(r.id) + '\')">👍 Engage</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="deleteBoostRequest(\'' + esc(r.id) + '\')" style="color:var(--red)">🗑</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function openBoostRequestModal(){
+  $('brTitle').value = '';
+  $('brUrl').value = '';
+  $('brPlatform').value = 'linkedin';
+  $('brEngagement').value = 'all';
+  $('brErr').textContent = '';
+  $('boostReqModalBg').classList.add('open');
+}
+
+function closeBoostRequestModal(){
+  $('boostReqModalBg').classList.remove('open');
+}
+
+async function submitBoostRequest(){
+  const title = $('brTitle').value.trim();
+  const url = $('brUrl').value.trim();
+  const platform = $('brPlatform').value;
+  const engagement = $('brEngagement').value;
+  if(!title){ $('brErr').textContent = 'Enter a post title'; return; }
+  if(!url){ $('brErr').textContent = 'Enter the post link'; return; }
+  if(url.indexOf('http') !== 0){ $('brErr').textContent = 'Enter a valid URL'; return; }
+  $('brSubmit').disabled = true;
+  try{
+    const res = await pmsPost({ action: 'boostRequestCreate', token: TOKEN, title, url, platform, engagement });
+    if(!res.ok) throw new Error(res.error || 'Failed to add boost request');
+    toast('Added to boost queue — community will engage with your post', 'ok');
+    closeBoostRequestModal();
+    await loadBoostRequests();
+  }catch(err){ $('brErr').textContent = err.message; }
+  finally{ $('brSubmit').disabled = false; }
+}
+
+async function engageWithPost(id){
+  try{
+    const res = await pmsPost({ action: 'boostRequestEngage', token: TOKEN, id });
+    if(!res.ok) throw new Error(res.error || 'Failed to engage');
+    toast('Marked as engaged — open the post and like/comment/share', 'ok');
+    await loadBoostRequests();
+  }catch(err){ toast(err.message, 'err'); }
+}
+
+async function deleteBoostRequest(id){
+  if(!confirm('Delete this boost request?')) return;
+  try{
+    const res = await pmsPost({ action: 'boostRequestDelete', token: TOKEN, id });
+    if(!res.ok) throw new Error(res.error || 'Failed to delete');
+    toast('Deleted', 'ok');
+    await loadBoostRequests();
+  }catch(err){ toast(err.message, 'err'); }
 }
 
 async function loadSocial(manual){
