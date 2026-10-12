@@ -1047,91 +1047,48 @@ const SOCIAL_COMPOSE_URLS = {
   youtube: 'https://studio.youtube.com/channel/UC/videos/upload'
 };
 
-/* ══ Auto Boost ══ */
-let boostEnabled = false;
-let boostLastPostAt = null;
-let boostCount = 0;
-
-async function loadBoostStatus(){
-  try{
-    const res = await pmsPost({ action: 'boostStatus', token: TOKEN });
-    if(res.ok){
-      boostEnabled = res.enabled;
-      boostLastPostAt = res.lastPostAt;
-      boostCount = res.boostCount || 0;
-      updateBoostUI();
-    }
-  }catch(_){}
-}
-
-function updateBoostUI(){
-  const btn = $('boostToggle');
-  const status = $('boostStatus');
-  const info = $('boostInfo');
-  const queued = SOCIAL.filter(p => p.status === 'queued').length;
-  btn.textContent = boostEnabled ? '⏸ Stop Boost' : '🚀 Start Boost';
-  btn.className = boostEnabled ? 'btn btn-ghost btn-sm' : 'btn btn-primary btn-sm';
-  status.innerHTML = boostEnabled ? '<span style="color:#059669">● Active</span>' : '<span style="color:var(--dim)">○ Inactive</span>';
-  info.style.display = '';
-  $('boostQueueCount').textContent = 'Queue: ' + queued + ' posts';
-  $('boostDone').textContent = 'Boosted: ' + boostCount;
-  $('boostLastPost').textContent = boostLastPostAt ? 'Last: ' + new Date(boostLastPostAt).toLocaleTimeString() : 'Last: Never';
-  $('boostNextPost').textContent = boostEnabled && boostLastPostAt ? 'Next: ' + new Date(Date.parse(boostLastPostAt) + 30 * 60 * 1000).toLocaleTimeString() : '';
-}
-
-async function toggleBoost(){
-  try{
-    const res = await pmsPost({ action: 'boostToggle', token: TOKEN, enable: !boostEnabled });
-    if(!res.ok) throw new Error(res.error || 'Toggle failed');
-    boostEnabled = res.enabled;
-    boostLastPostAt = res.lastPostAt;
-    updateBoostUI();
-    toast(boostEnabled ? 'Auto Boost started — posts every 30 min' : 'Auto Boost stopped', 'ok');
-  }catch(err){ toast(err.message, 'err'); }
-}
-
 /* ══ Boost Existing Post ══ */
 let boostPostPosts = [];
 
 function generateBoostPosts(){
   const url = $('boostPostUrl').value.trim();
-  if(!url){ toast('Paste a LinkedIn post URL', 'err'); return; }
-  if(url.indexOf('linkedin.com') === -1){ toast('Please paste a LinkedIn post URL', 'err'); return; }
+  if(!url){ toast('Paste a post URL', 'err'); return; }
+  if(url.indexOf('linkedin.com') === -1 && url.indexOf('twitter.com') === -1 && url.indexOf('facebook.com') === -1 && url.indexOf('x.com') === -1){ toast('Paste a LinkedIn/Twitter/Facebook post URL', 'err'); return; }
 
   const posts = [];
 
   posts.push({
     platform: 'twitter',
     title: 'Check out our LinkedIn post',
-    content: `🔥 Just shared an important update on LinkedIn!\n\nCheck it out and follow us for more:\n${url}\n\n#LinkedIn #TheDimeTechnology #SoftwareDevelopment`,
+    content: `🔥 Just shared something important on LinkedIn!\n\nPlease check it out and drop a like:\n${url}\n\n#LinkedIn #TheDimeTechnology #SoftwareDevelopment #Tech #AI`,
     url: url
   });
 
   posts.push({
     platform: 'facebook',
     title: 'New LinkedIn Post',
-    content: `📢 We just published a new post on LinkedIn!\n\nRead and follow us for more updates:\n${url}\n\n#LinkedIn #TheDimeTechnology`,
+    content: `📢 We just published a new post on LinkedIn!\n\nPlease check it out, like and share:\n${url}\n\n#LinkedIn #TheDimeTechnology #SoftwareDevelopment #Tech`,
     url: url
   });
 
   posts.push({
     platform: 'reddit',
     title: 'Check out our LinkedIn update',
-    content: `Hey everyone! We just shared an update on LinkedIn about our recent work.\n\nWould love your thoughts: ${url}`,
+    content: `Hey everyone! We just shared an update on LinkedIn about our recent work.\n\nWould love your thoughts and an upvote if you find it useful: ${url}`,
     url: url
   });
 
   posts.push({
     platform: 'instagram',
     title: 'New on LinkedIn',
-    content: `📱 NEW POST ON LINKEDIN!\n\nCheck it out → Link in bio!\n\n#LinkedIn #TheDimeTechnology #SoftwareDevelopment #Tech`,
+    content: `📱 NEW POST ON LINKEDIN!\n\nCheck it out → Link in bio!\n\nDouble tap if you like it! ❤️\n\n#LinkedIn #TheDimeTechnology #SoftwareDevelopment #Tech #AI`,
     url: url
   });
 
   posts.push({
     platform: 'youtube',
     title: 'LinkedIn Update',
-    content: `We just shared an update on LinkedIn. Check it out:\n${url}\n\nSubscribe for more content!`,
+    content: `We just shared an update on LinkedIn. Check it out:\n${url}\n\nLike and subscribe for more content!`,
     url: url
   });
 
@@ -1145,13 +1102,29 @@ function renderBoostPostList(){
   $('boostPostList').innerHTML = boostPostPosts.map((p, i) => {
     const platName = PLATFORM_NAMES[p.platform] || p.platform;
     const short = p.content.length > 100 ? p.content.slice(0, 97) + '...' : p.content;
+    const composeUrl = SOCIAL_COMPOSE_URLS[p.platform] || '';
     return '<div style="background:var(--surface2);border:1px solid var(--line2);border-radius:8px;padding:10px;display:flex;align-items:center;gap:12px">' +
       '<span class="v-chip" style="min-width:70px">' + esc(platName) + '</span>' +
       '<div style="flex:1;font-size:12px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(short) + '</div>' +
-      '<button class="btn btn-primary btn-sm" onclick="queueBoostPost(' + i + ')">+ Queue</button>' +
-      '<button class="btn btn-ghost btn-sm" onclick="copyBoostPost(' + i + ')">📋</button>' +
+      '<button class="btn btn-primary btn-sm" onclick="copyAndOpenBoostPost(' + i + ')">📋 Copy & Open</button>' +
+      '<button class="btn btn-ghost btn-sm" onclick="queueBoostPost(' + i + ')">+ Queue</button>' +
     '</div>';
   }).join('') + '<div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="queueAllBoostPosts()">📋 Queue All Posts</button></div>';
+}
+
+function copyAndOpenBoostPost(i){
+  const p = boostPostPosts[i];
+  if(!p) return;
+  const platName = PLATFORM_NAMES[p.platform] || p.platform;
+  const composeUrl = SOCIAL_COMPOSE_URLS[p.platform] || '';
+  navigator.clipboard.writeText(p.content).then(() => {
+    if(composeUrl) window.open(composeUrl, '_blank');
+    toast('Copied ' + platName + ' post — paste it on the platform', 'ok');
+  }).catch(() => {
+    fallbackCopy(p.content);
+    if(composeUrl) window.open(composeUrl, '_blank');
+    toast('Copied ' + platName + ' post — paste it on the platform', 'ok');
+  });
 }
 
 function copyBoostPost(i){
@@ -1346,7 +1319,6 @@ async function loadSocial(manual){
     }
     SOCIAL = Array.isArray(res.posts) ? res.posts : [];
     renderSocial();
-    loadBoostStatus();
     if(manual) toast('Social queue updated');
   }catch(err){ toast(err.message || 'Failed to load social posts', 'err'); }
 }

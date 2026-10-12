@@ -300,46 +300,52 @@ if(location.hostname === 'dime-business.pages.dev'){
         <div class="page-head">
           <div>
             <h1>Social Promoter</h1>
-            <p class="page-sub">Queue and publish posts across all social platforms.</p>
+            <p class="page-sub">Post manually on social media → share link here → generate cross-promotion to boost engagement.</p>
           </div>
           <button class="btn btn-ghost btn-sm" onclick="loadSocial(true)">↻ Refresh</button>
-          <button class="btn btn-primary btn-sm" onclick="openSocialModal(null)">+ New post</button>
+          <button class="btn btn-primary btn-sm" onclick="openSocialModal(null)">+ Add Post</button>
         </div>
 
-        <!-- Auto Boost -->
-        <div class="rep-panel" style="margin-bottom:16px">
-          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-            <div>
-              <h3 style="margin:0 0 4px">🚀 Auto Boost</h3>
-              <p class="panel-sub" style="margin:0">Automatically publish one queued post every 30 minutes.</p>
+        <!-- How It Works -->
+        <div class="rep-panel" style="margin-bottom:16px;background:var(--blue-soft);border:1px solid rgba(99,102,241,.2)">
+          <h3 style="margin:0 0 8px">📌 How It Works</h3>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;font-size:12px">
+            <div style="text-align:center;padding:8px">
+              <div style="font-size:20px;margin-bottom:4px">1️⃣</div>
+              <b>Post Manually</b><br>Post on LinkedIn, Twitter, etc.
             </div>
-            <div style="display:flex;align-items:center;gap:12px">
-              <div id="boostStatus" style="font-size:12px;color:var(--dim)">Checking...</div>
-              <button class="btn btn-primary btn-sm" id="boostToggle" onclick="toggleBoost()">Start Boost</button>
+            <div style="text-align:center;padding:8px">
+              <div style="font-size:20px;margin-bottom:4px">2️⃣</div>
+              <b>Copy Link</b><br>Copy the post URL
             </div>
-          </div>
-          <div id="boostInfo" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line2);font-size:12px;color:var(--dim)">
-            <span id="boostDone" style="font-weight:600;color:var(--text)">Boosted: 0</span> · 
-            <span id="boostLastPost">Last: Never</span> · 
-            <span id="boostNextPost"></span> ·
-            <span id="boostQueueCount">Queue: 0 posts</span>
+            <div style="text-align:center;padding:8px">
+              <div style="font-size:20px;margin-bottom:4px">3️⃣</div>
+              <b>Paste Here</b><br>Paste link in Boost section
+            </div>
+            <div style="text-align:center;padding:8px">
+              <div style="font-size:20px;margin-bottom:4px">4️⃣</div>
+              <b>Share Boost</b><br>Share generated posts to drive likes
+            </div>
           </div>
         </div>
 
         <!-- Boost Existing Post -->
         <div class="rep-panel" style="margin-bottom:16px">
-          <h3 style="margin:0 0 4px">🔗 Boost Existing Post</h3>
-          <p class="panel-sub" style="margin:0 0 12px">Paste a LinkedIn post link to generate promotion posts on other platforms that drive traffic back to LinkedIn.</p>
+          <h3 style="margin:0 0 4px">🔗 Boost Your Post</h3>
+          <p class="panel-sub" style="margin:0 0 12px">Paste your post link → generate promotion posts for other platforms → share them to drive traffic back to your post.</p>
           <div style="display:grid;grid-template-columns:1fr auto;gap:12px">
             <div class="field" style="margin:0">
-              <input class="inp" id="boostPostUrl" placeholder="https://www.linkedin.com/feed/update/urn:li:activity:..." maxlength="500">
+              <input class="inp" id="boostPostUrl" placeholder="Paste your LinkedIn/Twitter/Facebook post link here..." maxlength="500">
             </div>
             <div class="field" style="margin:0">
               <button class="btn btn-primary btn-sm" onclick="generateBoostPosts()">🚀 Generate Boost Posts</button>
             </div>
           </div>
           <div id="boostPostGenerated" style="display:none;margin-top:12px">
-            <h4 style="margin:0 0 8px;font-size:13px;color:var(--dim)">📋 Promotion Posts (share these to boost LinkedIn engagement)</h4>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <h4 style="margin:0;font-size:13px;color:var(--dim)">📋 Share these on other platforms to boost engagement</h4>
+              <button class="btn btn-primary btn-sm" onclick="queueAllBoostPosts()">📋 Queue All</button>
+            </div>
             <div id="boostPostList" style="display:grid;gap:8px"></div>
           </div>
         </div>
