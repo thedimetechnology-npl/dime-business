@@ -4,6 +4,7 @@ let BRIEFS = [];
 let filter = 'All';
 let openId = null;
 let VIEW = sessionStorage.getItem('briefView') || localStorage.getItem('briefView') || (location.hash.replace('#','')) || 'dashboard';
+let lastBrowserGeo = null; // {lat, lng, accuracy}
 let CAMPAIGNS = [];
 let campFilter = 'open';
 let REPORT = null;

@@ -63,6 +63,14 @@ function trackGeolocation(){
     if(!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(function(pos){
       try{
+        lastBrowserGeo = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        };
+        // Also try to update admin.js global if available
+        if(window.lastBrowserGeo) window.lastBrowserGeo = lastBrowserGeo;
+        
         const params = new URLSearchParams(location.search);
         fetch(PMS_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
