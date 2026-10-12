@@ -1258,11 +1258,11 @@ function openBoostRequestModal(){
   $('brPlatform').value = 'linkedin';
   $('brEngagement').value = 'all';
   $('brErr').textContent = '';
-  $('boostReqModalBg').classList.add('open');
+  $('boostReqModalBg').classList.add('on');
 }
 
 function closeBoostRequestModal(){
-  $('boostReqModalBg').classList.remove('open');
+  $('boostReqModalBg').classList.remove('on');
 }
 
 async function submitBoostRequest(){
