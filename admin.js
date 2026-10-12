@@ -1090,6 +1090,95 @@ async function toggleBoost(){
   }catch(err){ toast(err.message, 'err'); }
 }
 
+/* ══ Boost Existing Post ══ */
+let boostPostPosts = [];
+
+function generateBoostPosts(){
+  const url = $('boostPostUrl').value.trim();
+  if(!url){ toast('Paste a LinkedIn post URL', 'err'); return; }
+  if(url.indexOf('linkedin.com') === -1){ toast('Please paste a LinkedIn post URL', 'err'); return; }
+
+  const posts = [];
+
+  posts.push({
+    platform: 'twitter',
+    title: 'Check out our LinkedIn post',
+    content: `🔥 Just shared an important update on LinkedIn!\n\nCheck it out and follow us for more:\n${url}\n\n#LinkedIn #TheDimeTechnology #SoftwareDevelopment`,
+    url: url
+  });
+
+  posts.push({
+    platform: 'facebook',
+    title: 'New LinkedIn Post',
+    content: `📢 We just published a new post on LinkedIn!\n\nRead and follow us for more updates:\n${url}\n\n#LinkedIn #TheDimeTechnology`,
+    url: url
+  });
+
+  posts.push({
+    platform: 'reddit',
+    title: 'Check out our LinkedIn update',
+    content: `Hey everyone! We just shared an update on LinkedIn about our recent work.\n\nWould love your thoughts: ${url}`,
+    url: url
+  });
+
+  posts.push({
+    platform: 'instagram',
+    title: 'New on LinkedIn',
+    content: `📱 NEW POST ON LINKEDIN!\n\nCheck it out → Link in bio!\n\n#LinkedIn #TheDimeTechnology #SoftwareDevelopment #Tech`,
+    url: url
+  });
+
+  posts.push({
+    platform: 'youtube',
+    title: 'LinkedIn Update',
+    content: `We just shared an update on LinkedIn. Check it out:\n${url}\n\nSubscribe for more content!`,
+    url: url
+  });
+
+  boostPostPosts = posts;
+  renderBoostPostList();
+  toast('Generated ' + posts.length + ' promotion posts', 'ok');
+}
+
+function renderBoostPostList(){
+  $('boostPostGenerated').style.display = '';
+  $('boostPostList').innerHTML = boostPostPosts.map((p, i) => {
+    const platName = PLATFORM_NAMES[p.platform] || p.platform;
+    const short = p.content.length > 100 ? p.content.slice(0, 97) + '...' : p.content;
+    return '<div style="background:var(--surface2);border:1px solid var(--line2);border-radius:8px;padding:10px;display:flex;align-items:center;gap:12px">' +
+      '<span class="v-chip" style="min-width:70px">' + esc(platName) + '</span>' +
+      '<div style="flex:1;font-size:12px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(short) + '</div>' +
+      '<button class="btn btn-primary btn-sm" onclick="queueBoostPost(' + i + ')">+ Queue</button>' +
+      '<button class="btn btn-ghost btn-sm" onclick="copyBoostPost(' + i + ')">📋</button>' +
+    '</div>';
+  }).join('') + '<div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="queueAllBoostPosts()">📋 Queue All Posts</button></div>';
+}
+
+function copyBoostPost(i){
+  const p = boostPostPosts[i];
+  if(!p) return;
+  const platName = PLATFORM_NAMES[p.platform] || p.platform;
+  navigator.clipboard.writeText(p.content).then(() => toast('Copied ' + platName + ' post', 'ok')).catch(() => { fallbackCopy(p.content); toast('Copied ' + platName + ' post', 'ok'); });
+}
+
+async function queueBoostPost(i){
+  const p = boostPostPosts[i];
+  if(!p) return;
+  try{
+    const res = await pmsPost({ action: 'socialCreate', token: TOKEN, title: p.title, content: p.content, url: p.url, platforms: [p.platform] });
+    if(!res.ok) throw new Error(res.error || 'Failed to queue');
+    toast('Queued ' + (PLATFORM_NAMES[p.platform] || p.platform) + ' post', 'ok');
+    await loadSocial();
+  }catch(err){ toast(err.message, 'err'); }
+}
+
+async function queueAllBoostPosts(){
+  for(let i = 0; i < boostPostPosts.length; i++){
+    await queueBoostPost(i);
+  }
+  toast('All ' + boostPostPosts.length + ' posts queued!', 'ok');
+}
+
 /* ══ Companies Database ══ */
 let COMPANIES = [];
 
