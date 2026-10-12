@@ -895,8 +895,8 @@ function visitorsFiltered(){
 }
 function visitorsCsv(rows){
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const head = ['When','Website','Page','Type','Element','Source','UTM Source','UTM Medium','UTM Campaign','Country','City','Region','IP','ISP','Device'].join(',');
-  const lines = rows.map(e => [e.at, e.site, e.page, e.type, e.element, visitorSource(e), e.utm_source, e.utm_medium, e.utm_campaign, countryName(e.country) || e.country, e.city, e.region, e.ip, e.isp, e.device].map(q).join(','));
+  const head = ['When','Website','Page','Type','Element','Source','UTM Source','UTM Medium','UTM Campaign','Country','City','Region','IP','ISP','Device','GPS'].join(',');
+  const lines = rows.map(e => [e.at, e.site, e.page, e.type, e.element, visitorSource(e), e.utm_source, e.utm_medium, e.utm_campaign, countryName(e.country) || e.country, e.city, e.region, e.ip, e.isp, e.device, e.lat && e.lng ? e.lat.toFixed(4) + ', ' + e.lng.toFixed(4) : ''].map(q).join(','));
   return [head].concat(lines).join('\n');
 }
 function exportVisitorsCsv(){
@@ -945,6 +945,7 @@ function renderVisitors(){
         '<td style="font-variant-numeric:tabular-nums">' + esc(e.ip || '—') + '</td>' +
         '<td style="color:var(--dim)" title="' + esc(e.isp || '') + '">' + esc(e.isp || '—') + '</td>' +
         '<td><span class="v-chip">' + esc(e.device || '—') + '</span></td>' +
+        '<td><span class="v-chip" style="color:var(--green)">📍' + (e.lat ? e.lat.toFixed(4) + ', ' + e.lng.toFixed(4) : '—') + '</span></td>' +
       '</tr>';
     }).join('');
   }
