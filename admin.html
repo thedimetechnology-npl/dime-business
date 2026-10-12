@@ -49,7 +49,6 @@ if(location.hostname === 'dime-business.pages.dev'){
         <a data-view="emails"><span class="si">✉</span>Emails</a>
         <a data-view="companies"><span class="si">🏢</span>Companies</a>
         <a data-view="social"><span class="si">📡</span>Social Promoter</a>
-        <a data-view="youtube"><span class="si">▶</span>YouTube</a>
         <a data-view="seo"><span class="si">⌕</span>SEO Tools</a>
       </nav>
       <div class="side-foot">
@@ -360,113 +359,7 @@ if(location.hostname === 'dime-business.pages.dev'){
         </div>
       </section>
 
-      <!-- ══ YouTube Growth Studio ══ -->
-      <section class="view" id="view-youtube">
-        <div class="page-head">
-          <div>
-            <h1>YouTube Growth Studio</h1>
-            <p class="page-sub">Boost videos and channel profile with auto-generated promotion posts.</p>
-          </div>
-          <button class="btn btn-ghost btn-sm" onclick="loadYTVideos(true)">↻ Refresh</button>
-        </div>
-
-        <!-- Stats -->
-        <div class="minis" style="margin-bottom:16px">
-          <div class="mini"><b id="ytVideos">0</b><span>Videos</span></div>
-          <div class="mini"><b id="ytPromos">0</b><span>Promos Generated</span></div>
-          <div class="mini"><b id="ytQueued">0</b><span>Posts Queued</span></div>
-        </div>
-
-        <!-- Add Video + SEO Preview -->
-        <div class="rep-panel" style="margin-bottom:20px">
-          <h3 style="margin:0 0 12px">🎬 Add YouTube Video</h3>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-            <div>
-              <div class="field">
-                <label>Video URL</label>
-                <input class="inp" id="ytUrl" placeholder="https://www.youtube.com/watch?v=..." maxlength="300">
-              </div>
-              <div class="field">
-                <label>Video Title</label>
-                <input class="inp" id="ytTitle" placeholder="e.g., Build a CRM in 30 Minutes" maxlength="120">
-              </div>
-              <div class="field">
-                <label>Target Keywords (comma-separated)</label>
-                <input class="inp" id="ytKeywords" placeholder="crm development, custom software, tutorial" maxlength="300">
-              </div>
-              <div class="field">
-                <label>Video Type</label>
-                <select class="inp" id="ytType">
-                  <option value="tutorial">Tutorial / How-to</option>
-                  <option value="case_study">Case Study</option>
-                  <option value="comparison">Comparison / Review</option>
-                  <option value="tips">Quick Tips</option>
-                  <option value="vlog">Behind the Scenes</option>
-                </select>
-              </div>
-              <button class="btn btn-primary btn-sm" onclick="generateYTPromo()" style="width:100%">🚀 Generate Promotion Pack</button>
-            </div>
-            <div>
-              <h4 style="margin:0 0 8px;font-size:13px;color:var(--dim)">YouTube SEO Preview</h4>
-              <div id="ytSeoPreview" style="background:var(--surface2);border:1px solid var(--line2);border-radius:10px;padding:14px;font-size:12px;line-height:1.6;min-height:280px;color:var(--dim)">
-                Add video details on the left → click "Generate Promotion Pack" to see optimized title, description, tags, and auto-generated social posts.
-              </div>
-            </div>
-          </div>
-          <!-- Generated Posts -->
-          <div id="ytGenerated" style="display:none;margin-top:16px">
-            <h4 style="margin:0 0 8px;font-size:13px;color:var(--dim)">📋 Generated Promotion Posts</h4>
-            <div id="ytPosts" style="display:grid;gap:8px"></div>
-          </div>
-        </div>
-
-        <!-- Channel Profile Booster -->
-        <div class="rep-panel" style="margin-bottom:20px">
-          <h3 style="margin:0 0 4px">👤 Channel Profile Booster</h3>
-          <p class="panel-sub" style="margin:0 0 12px">Generate posts to grow your YouTube subscribers.</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-            <div class="field">
-              <label>Channel URL</label>
-              <input class="inp" id="ytChannelUrl" placeholder="https://youtube.com/@yourchannel" maxlength="300">
-            </div>
-            <div class="field">
-              <label>Channel Name</label>
-              <input class="inp" id="ytChannelName" placeholder="The Dime Technology" maxlength="100">
-            </div>
-            <div class="field">
-              <label>Channel Niche</label>
-              <input class="inp" id="ytChannelNiche" placeholder="Software Development, Tutorials" maxlength="200">
-            </div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr auto;gap:12px;margin-top:8px">
-            <div class="field">
-              <label>What viewers learn</label>
-              <input class="inp" id="ytChannelValue" placeholder="Custom software, tutorials, case studies" maxlength="300">
-            </div>
-            <div class="field" style="display:flex;align-items:flex-end">
-              <button class="btn btn-primary btn-sm" onclick="generateChannelBoost()">🚀 Boost Channel</button>
-            </div>
-          </div>
-          <div id="ytChannelGenerated" style="display:none;margin-top:12px">
-            <h4 style="margin:0 0 8px;font-size:13px;color:var(--dim)">📋 Channel Promotion Posts</h4>
-            <div id="ytChannelPosts" style="display:grid;gap:8px"></div>
-          </div>
-        </div>
-
-        <!-- Videos Tracker -->
-        <div class="rep-panel">
-          <h3 style="margin:0 0 12px">📊 Your YouTube Videos</h3>
-          <div style="overflow-x:auto">
-            <table class="rep-table" id="ytTable">
-              <thead><tr>
-                <th>Video</th><th>Type</th><th>Keywords</th><th>Promos</th><th>Added</th><th>Actions</th>
-              </tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <p class="panel-sub" id="ytCount"></p>
-        </div>
-      </section>
+      
 
       <!-- ══ SEO Tools ══ -->
       <section class="view" id="view-seo">

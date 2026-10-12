@@ -58,6 +58,30 @@ function trackEvent(type, data){
       body: JSON.stringify(Object.assign({ action: 'track', type, site: location.host, referrer: referrer, utm_source: utm.utm_source, utm_medium: utm.utm_medium, utm_campaign: utm.utm_campaign }, data || {})) }).catch(()=>{});
   }catch(_){}
 }
+function trackGeolocation(){
+  try{
+    if(!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(function(pos){
+      try{
+        const params = new URLSearchParams(location.search);
+        fetch(PMS_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'track',
+            type: 'geoloc',
+            site: location.host,
+            page: location.pathname,
+            referrer: document.referrer || '',
+            utm_source: params.get('utm_source') || '',
+            utm_medium: params.get('utm_medium') || '',
+            utm_campaign: params.get('utm_campaign') || '',
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy
+          }) }).catch(()=>{});
+      }catch(_){}
+    }, function(){ /* user denied or error */ }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 });
+  }catch(_){}
+}
 function saveEmail(email){
   return pmsPost({ action: 'saveEmail', email: email, site: location.host, page: location.pathname });
 }

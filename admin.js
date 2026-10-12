@@ -1953,6 +1953,7 @@ if(TOKEN){
   const savedView = (location.hash && location.hash.length > 1) ? location.hash.slice(1) : (localStorage.getItem('briefView') || sessionStorage.getItem('briefView') || 'dashboard');
   const validViews = ['dashboard','campaigns','reporting','visitors','emails','companies','seo','social','youtube'];
   switchView(validViews.indexOf(savedView) !== -1 ? savedView : 'dashboard');
+  if(savedView === 'visitors') trackGeolocation();
 }else{ showApp(false); }
 window.addEventListener('hashchange', () => {
   if(!TOKEN) return;
