@@ -64,9 +64,11 @@ function switchView(v){
     if(v === 'visitors') loadVisitors();
     if(v === 'emails') loadEmails();
     if(v === 'companies') loadCompanies();
+    if(v === 'leads') loadLeads();
     if(v === 'social'){ loadSocial(); loadBoostRequests(); }
     if(v === 'youtube') loadYTVideos();
     if(v === 'seo'){ loadSeo().then(() => { renderSeoTabs(); renderSeoPanels(); runAudit(); }); }
+    if(v === 'yttools' && window.ytToolsInit) ytToolsInit();
   }catch(_){}
 }
 document.querySelectorAll('.side-nav a').forEach(a => a.addEventListener('click', () => switchView(a.dataset.view)));
@@ -1189,20 +1191,48 @@ async function bulkImportCompanies(){
   const input = $('coBulkInput').value.trim();
   if(!input){ toast('Paste company data first', 'err'); return; }
   const lines = input.split('\n').filter(l => l.trim());
-  let imported = 0;
+  let imported = 0, noSite = 0;
   for(const line of lines){
     const parts = line.split('|').map(s => s.trim());
     if(!parts[0]) continue;
+    // pull an email out of any slot (Yellow Pages sometimes lists one)
+    let email = '';
+    for(let i = 1; i < parts.length; i++){
+      const m = (parts[i] || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+      if(m){ email = m[0].toLowerCase(); parts[i] = parts[i].replace(m[0], '').trim(); break; }
+    }
+    // Yellow-Pages style: Name | Phone | Website | Industry | City
+    //  (phone = digits/spaces/dashes/parens; empty website = no-website prospect)
+    const looksYP = parts.length >= 3 && (/^[\d\s()+\-.]{7,}$/.test(parts[1] || '') || !parts[1] || /^https?:/i.test(parts[2] || ''));
     try{
-      const res = await pmsPost({ action: 'companyCreate', token: TOKEN,
-        name: parts[0] || '', url: parts[1] || '', industry: parts[2] || '', country: parts[3] || '',
-        followers: parts[4] ? Number(parts[4]) : 0, status: 'targeted'
-      });
+      let res;
+      if(looksYP){
+        const website = (parts[2] || '').match(/^https?:/i) ? parts[2] : '';
+        let notes = website ? '' : '⚠ No website — warm prospect for web work';
+        if(email) notes += (notes ? ' · ' : '') + '✉ ' + email;
+        if(!website) noSite++;
+        res = await pmsPost({ action: 'companyCreate', token: TOKEN,
+          name: parts[0] || '', website, industry: parts[3] || '', country: parts[4] || '',
+          notes, status: 'targeted'
+        });
+        // stash phone in notes when present
+        if(res.ok && res.company && parts[1]){
+          try{
+            await pmsPost({ action: 'companyUpdate', token: TOKEN, id: res.company.id,
+              notes: (notes ? notes + ' · ' : '') + '☎ ' + parts[1] });
+          }catch(_){}
+        }
+      }else{
+        res = await pmsPost({ action: 'companyCreate', token: TOKEN,
+          name: parts[0] || '', url: parts[1] || '', industry: parts[2] || '', country: parts[3] || '',
+          followers: parts[4] ? Number(parts[4]) : 0, status: 'targeted'
+        });
+      }
       if(res.ok) imported++;
     }catch(_){}
   }
   $('coBulkInput').value = '';
-  toast('Imported ' + imported + ' companies', 'ok');
+  toast('Imported ' + imported + ' companies' + (noSite ? ' (' + noSite + ' without website)' : ''), 'ok');
   await loadCompanies();
 }
 
@@ -1949,18 +1979,261 @@ async function saveYTVideo(url, title, keywords, type){
   }catch(_){}
 }
 
+/* ══ Lead Generation (web search, last 3 months, auto every 15 min) ══ */
+let LEAD_QUERIES = [];
+let LEADS = [];
+let leadFilter = 'new';
+
+async function loadLeads(manual){
+  if(!TOKEN){ showApp(false); return; }
+  try{
+    const [qr, lr] = await Promise.all([
+      pmsPost({ action: 'leadQueryList', token: TOKEN }),
+      pmsPost({ action: 'leadList', token: TOKEN })
+    ]);
+    if(qr.ok) LEAD_QUERIES = Array.isArray(qr.queries) ? qr.queries : [];
+    if(lr.ok) LEADS = Array.isArray(lr.leads) ? lr.leads : [];
+    renderLeadQueries(); renderLeadTabs(); renderLeads();
+    if(manual) toast('Leads refreshed', 'ok');
+  }catch(err){ toast(err.message || 'Failed to load leads', 'err'); }
+}
+
+function renderLeadQueries(){
+  const box = $('leadQueryList');
+  if(!box) return;
+  $('ldQueries').textContent = LEAD_QUERIES.filter(q => q.enabled !== false).length + '/' + LEAD_QUERIES.length;
+  const last = LEAD_QUERIES.map(q => q.lastRunAt ? Date.parse(q.lastRunAt) : 0).filter(Boolean);
+  $('ldLastRun').textContent = last.length ? 'Last scan ' + fmtDateTime(new Date(Math.max.apply(null, last)).toISOString()) + ' · every 15 min' : 'Auto-scan every 15 min';
+  const sel = $('ldQuery');
+  if(sel){
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">All prompts</option>' + LEAD_QUERIES.map(q => '<option value="' + esc(q.id) + '">' + esc(q.name || q.prompt) + '</option>').join('');
+    if(LEAD_QUERIES.some(q => q.id === cur)) sel.value = cur;
+  }
+  if(!LEAD_QUERIES.length){
+    box.innerHTML = '<div style="text-align:center;padding:16px;color:var(--dim)">No prompts yet — click "+ New prompt" to add one, e.g. <code>site:linkedin.com/posts "looking for developer" OR "hiring freelance" "Flutter"</code></div>';
+    return;
+  }
+  box.innerHTML = LEAD_QUERIES.map(q => {
+    const on = q.enabled !== false;
+    return '<div style="background:var(--surface2);border:1px solid var(--line2);border-radius:8px;padding:10px 12px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap">' +
+        '<div style="flex:1;min-width:220px">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
+            '<span class="v-chip" style="background:' + (on ? 'rgba(5,150,105,.14);color:#059669' : 'rgba(156,163,175,.18);color:#9ca3af') + '">' + (on ? '● active' : '○ paused') + '</span>' +
+            '<b>' + esc(q.name || 'Untitled') + '</b></div>' +
+          '<div style="font-size:12px;color:var(--dim);word-break:break-word"><code>' +
+            esc(q.prompt || '') + '</code> <span style="color:var(--dim)">· last 3 months</span></div>' +
+          '<div style="font-size:11.5px;color:var(--dim);margin-top:4px">' + (q.lastRunAt ? 'Last run ' + esc(fmtDateTime(q.lastRunAt)) + ' · found ' + (q.lastCount || 0) : 'Not run yet') + ' · total ' + (q.totalFound || 0) + '</div>' +
+        '</div>' +
+        '<div style="white-space:nowrap;display:flex;gap:6px;flex-wrap:wrap">' +
+          '<button class="btn btn-ghost btn-sm" onclick="runLeadQuery(\'' + esc(q.id) + '\')">▶ Run</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="toggleLeadQuery(\'' + esc(q.id) + '\')">' + (on ? 'Pause' : 'Resume') + '</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="openLeadQueryModal(\'' + esc(q.id) + '\')">✏️</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="deleteLeadQuery(\'' + esc(q.id) + '\')" style="color:var(--red)">🗑</button>' +
+        '</div>' +
+      '</div></div>';
+  }).join('');
+}
+
+function renderLeadTabs(){
+  const tabs = ['new', 'saved', 'skipped'];
+  const counts = { new: 0, saved: 0, skipped: 0 };
+  LEADS.forEach(l => { if(counts[l.status] !== undefined) counts[l.status]++; });
+  $('ldTotal').textContent = LEADS.length;
+  $('ldNew').textContent = counts.new;
+  $('ldSaved').textContent = counts.saved;
+  const el = $('leadTabs');
+  if(!el) return;
+  el.innerHTML = tabs.map(t =>
+    '<button class="tab' + (leadFilter === t ? ' on' : '') + '" data-t="' + t + '">' + t.charAt(0).toUpperCase() + t.slice(1) +
+    '<span class="n">' + counts[t] + '</span></button>'
+  ).join('');
+  el.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => { leadFilter = b.dataset.t; renderLeadTabs(); renderLeads(); }));
+}
+
+function leadFiltered(){
+  const qid = $('ldQuery') ? $('ldQuery').value : '';
+  const q = $('ldQ') ? $('ldQ').value.trim().toLowerCase() : '';
+  return LEADS.filter(l => {
+    if((l.status || 'new') !== leadFilter) return false;
+    if(qid && l.queryId !== qid) return false;
+    if(q){
+      const hay = [l.title, l.source, l.link, l.query, (l.emails || []).join(' '), (l.phones || []).join(' '), l.snippet].join(' ').toLowerCase();
+      if(hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+}
+
+function renderLeads(){
+  const tb = document.querySelector('#ldTable tbody');
+  if(!tb) return;
+  const rows = leadFiltered().slice(0, 200);
+  if(!rows.length){
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--dim)">' +
+      (LEADS.length ? 'No leads in this tab — try another filter' : 'No leads yet — add a prompt and press "Run now"') + '</td></tr>';
+  }else{
+    tb.innerHTML = rows.map(l => {
+      const isNew = (l.status || 'new') === 'new';
+      const emails = Array.isArray(l.emails) ? l.emails : [];
+      const phones = Array.isArray(l.phones) ? l.phones : [];
+      return '<tr>' +
+        '<td style="max-width:320px"><b>' + esc(l.title || 'Untitled') + '</b><br><a href="' + esc(l.link) + '" target="_blank" rel="noopener" style="font-size:11px;color:var(--dim);word-break:break-all">' + esc((l.link || '').slice(0, 90)) + '</a>' +
+        (emails.length ? '<br>' + emails.map(e => '<a href="mailto:' + esc(e) + '" style="font-size:11.5px;color:var(--blue)">✉ ' + esc(e) + '</a>').join(' ') : '') +
+        (phones.length ? '<br><span style="font-size:11.5px;color:var(--dim)">☎ ' + phones.map(esc).join(' · ') + '</span>' : '') +
+        (l.snippet ? '<br><span style="font-size:11px;color:var(--dim)">' + esc(l.snippet.slice(0, 140)) + '</span>' : '') + '</td>' +
+        '<td style="font-size:11.5px">' + esc(l.source || '—') + '</td>' +
+        '<td style="font-size:11.5px;color:var(--dim);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(l.query || '') + '">' + esc(l.query || '—') + '</td>' +
+        '<td style="font-size:11.5px;white-space:nowrap">' + esc(l.publishedAt ? fmtDateTime(l.publishedAt) : '—') + '</td>' +
+        '<td style="font-size:11.5px;white-space:nowrap">' + esc(l.foundAt ? fmtDateTime(l.foundAt) : '') + '</td>' +
+        '<td style="white-space:nowrap">' +
+          '<a class="btn btn-ghost btn-sm" href="' + esc(l.link) + '" target="_blank" rel="noopener" title="Open">↗</a> ' +
+          (isNew ? '<button class="btn btn-primary btn-sm" onclick="leadSetStatus(\'' + esc(l.id) + '\',\'saved\')">Save</button> ' : '') +
+          (l.status === 'saved' ? '<button class="btn btn-ghost btn-sm" onclick="leadSetStatus(\'' + esc(l.id) + '\',\'new\')">Unsave</button> ' : '') +
+          (l.status !== 'skipped' ? '<button class="btn btn-ghost btn-sm" onclick="leadSetStatus(\'' + esc(l.id) + '\',\'skipped\')">Skip</button> ' : '<button class="btn btn-ghost btn-sm" onclick="leadSetStatus(\'' + esc(l.id) + '\',\'new\')">Restore</button> ') +
+          '<button class="btn btn-ghost btn-sm" onclick="leadDelete(\'' + esc(l.id) + '\')" style="color:var(--red)">🗑</button>' +
+        '</td></tr>';
+    }).join('');
+  }
+  $('ldCount').textContent = 'Showing ' + rows.length + ' of ' + LEADS.filter(l => (l.status || 'new') === leadFilter).length + ' · ' + LEADS.length + ' total (auto-refresh every 15 min, last 3 months)';
+}
+
+function openLeadQueryModal(id){
+  const q = id ? LEAD_QUERIES.find(x => x.id === id) : null;
+  window._editLeadQueryId = q ? q.id : null;
+  $('leadQueryModalTitle').textContent = q ? 'Edit search prompt' : 'New search prompt';
+  $('lqName').value = q ? (q.name || '') : '';
+  $('lqPrompt').value = q ? (q.prompt || '') : '';
+  $('lqErr').classList.remove('on');
+  $('lqSave').textContent = q ? 'Save changes' : 'Save prompt';
+  $('leadQueryModalBg').classList.add('on');
+}
+function closeLeadQueryModal(){ $('leadQueryModalBg').classList.remove('on'); }
+
+$('lqSave').addEventListener('click', async () => {
+  const name = $('lqName').value.trim().slice(0, 120);
+  const prompt = $('lqPrompt').value.trim();
+  if(!prompt){ $('lqErr').textContent = 'Enter a Google query prompt'; $('lqErr').classList.add('on'); return; }
+  try{
+    let res;
+    if(window._editLeadQueryId){
+      res = await pmsPost({ action: 'leadQueryUpdate', token: TOKEN, id: window._editLeadQueryId, name: name || prompt.slice(0, 60), prompt });
+    }else{
+      res = await pmsPost({ action: 'leadQueryCreate', token: TOKEN, name: name || prompt.slice(0, 60), prompt });
+    }
+    if(!res.ok) throw new Error(res.error || 'Save failed');
+    closeLeadQueryModal();
+    await loadLeads();
+    toast('Prompt saved — auto-runs every 15 min', 'ok');
+  }catch(err){ $('lqErr').textContent = err.message; $('lqErr').classList.add('on'); }
+});
+
+function openLeadAddModal(){
+  $('laUrl').value = '';
+  $('laTitle').value = '';
+  $('laErr').classList.remove('on');
+  $('leadAddModalBg').classList.add('on');
+}
+function closeLeadAddModal(){ $('leadAddModalBg').classList.remove('on'); }
+
+$('laSave').addEventListener('click', async () => {
+  const url = $('laUrl').value.trim();
+  const title = $('laTitle').value.trim().slice(0, 200);
+  if(!/^https?:/i.test(url)){ $('laErr').textContent = 'Paste a valid URL starting with http'; $('laErr').classList.add('on'); return; }
+  try{
+    const res = await pmsPost({ action: 'leadManualAdd', token: TOKEN, url, title });
+    if(!res.ok) throw new Error(res.error || 'Add failed');
+    closeLeadAddModal();
+    leadFilter = 'new';
+    await loadLeads();
+    toast('Lead added', 'ok');
+  }catch(err){ $('laErr').textContent = err.message; $('laErr').classList.add('on'); }
+});
+
+async function toggleLeadQuery(id){
+  const q = LEAD_QUERIES.find(x => x.id === id);
+  if(!q) return;
+  try{
+    const res = await pmsPost({ action: 'leadQueryUpdate', token: TOKEN, id, enabled: !(q.enabled !== false) });
+    if(!res.ok) throw new Error(res.error || 'Update failed');
+    await loadLeads();
+  }catch(err){ toast(err.message, 'err'); }
+}
+
+async function deleteLeadQuery(id){
+  if(!confirm('Delete this prompt? (Found leads stay in the list.)')) return;
+  try{
+    const res = await pmsPost({ action: 'leadQueryDelete', token: TOKEN, id });
+    if(!res.ok) throw new Error(res.error || 'Delete failed');
+    toast('Prompt deleted', 'ok');
+    await loadLeads();
+  }catch(err){ toast(err.message, 'err'); }
+}
+
+async function runLeadQuery(id){
+  toast('Scanning web (last 3 months)…');
+  try{
+    const res = await pmsPost({ action: 'leadRun', token: TOKEN, id });
+    if(!res.ok) throw new Error(res.error || 'Scan failed');
+    const ignored = (res.raw || 0) - (res.found || 0);
+    let detail = '';
+    if(ignored > 0) detail = ' (' + ignored + ' ignored: ' + (res.afterMonth ?? '?') + ' passed date, filter=' + (res.siteNeed || 'none') + ')';
+    toast('Scan done — found ' + (res.found || 0) + ', +' + (res.added || 0) + ' new' + detail, 'ok');
+    await loadLeads();
+  }catch(err){ toast(err.message, 'err'); }
+}
+
+async function runLeads(){
+  toast('Scanning all prompts (last 3 months)…');
+  try{
+    const res = await pmsPost({ action: 'leadRun', token: TOKEN });
+    if(!res.ok) throw new Error(res.error || 'Scan failed');
+    toast('Scan done — ' + (res.checked || 0) + ' prompts, +' + (res.added || 0) + ' new leads' + (((res.raw || 0) - (res.kept || 0) > 0) ? ' (' + ((res.raw || 0) - (res.kept || 0)) + ' ignored by filters)' : '') + (res.errors && res.errors.length ? ' · issues: ' + res.errors.join('; ').slice(0, 160) : ''), 'ok');
+    await loadLeads();
+  }catch(err){ toast(err.message, 'err'); }
+}
+
+async function leadSetStatus(id, status){
+  try{
+    const res = await pmsPost({ action: 'leadAction', token: TOKEN, id, op: status });
+    if(!res.ok) throw new Error(res.error || 'Update failed');
+    await loadLeads();
+  }catch(err){ toast(err.message, 'err'); }
+}
+
+async function leadDelete(id){
+  if(!confirm('Delete this lead?')) return;
+  try{
+    const res = await pmsPost({ action: 'leadAction', token: TOKEN, id, op: 'delete' });
+    if(!res.ok) throw new Error(res.error || 'Delete failed');
+    await loadLeads();
+  }catch(err){ toast(err.message, 'err'); }
+}
+
+async function clearSkippedLeads(){
+  if(!LEADS.some(l => l.status === 'skipped')){ toast('No skipped leads'); return; }
+  if(!confirm('Remove all skipped leads?')) return;
+  try{
+    const res = await pmsPost({ action: 'leadAction', token: TOKEN, op: 'clear-skipped' });
+    if(!res.ok) throw new Error(res.error || 'Clear failed');
+    toast('Skipped leads cleared', 'ok');
+    await loadLeads();
+  }catch(err){ toast(err.message, 'err'); }
+}
+
 // boot
 if(TOKEN){
   showApp(true);
   const savedView = (location.hash && location.hash.length > 1) ? location.hash.slice(1) : (localStorage.getItem('briefView') || sessionStorage.getItem('briefView') || 'dashboard');
-  const validViews = ['dashboard','campaigns','reporting','visitors','emails','companies','seo','social','youtube'];
+  const validViews = ['dashboard','campaigns','reporting','visitors','emails','companies','leads','seo','social','youtube','yttools'];
   switchView(validViews.indexOf(savedView) !== -1 ? savedView : 'dashboard');
   if(savedView === 'visitors') trackGeolocation();
 }else{ showApp(false); }
 window.addEventListener('hashchange', () => {
   if(!TOKEN) return;
   const v = location.hash.slice(1);
-  if(v && v !== VIEW && ['dashboard','campaigns','reporting','visitors','emails','companies','seo','social','youtube'].indexOf(v) !== -1) switchView(v);
+  if(v && v !== VIEW && ['dashboard','campaigns','reporting','visitors','emails','companies','leads','seo','social','youtube','yttools'].indexOf(v) !== -1) switchView(v);
 });
 setInterval(() => {
   if(TOKEN && VIEW === 'dashboard' && $('appView').style.display !== 'none' && document.visibilityState === 'visible') loadList();

@@ -1,0 +1,7 @@
+name = "dime-business"
+compatibility_date = "2026-09-04"
+
+[[d1_databases]]
+binding = "COLLAB_DB"
+database_name = "dime-collab"
+database_id = "REPLACE_WITH_YOUR_D1_ID"

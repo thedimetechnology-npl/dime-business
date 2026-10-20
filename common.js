@@ -7,7 +7,11 @@ async function pmsPost(body){
   // text/plain matches the PMS portal's own calls — it is a "simple" header,
   // so the worker's preflight (which doesn't allow custom headers) never blocks us.
   const r = await fetch(PMS_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
-  if(!r.ok) throw new Error('Network error (' + r.status + ')');
+  if(!r.ok){
+    // Surface the worker's real error (e.g. feed failures) instead of a bare status code
+    try{ const j = await r.json(); if(j && j.error) throw new Error(j.error); }catch(e){ if(e && e.message && !/^Network error/.test(e.message)) throw e; }
+    throw new Error('Network error (' + r.status + ')');
+  }
   return r.json();
 }
 

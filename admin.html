@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -8,7 +8,7 @@
   <link rel="icon" href="logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=20261010">
+  <link rel="stylesheet" href="app.css?v=20261020">
 </head>
 <body>
 <script>
@@ -48,8 +48,10 @@ if(location.hostname === 'dime-business.pages.dev'){
         <a data-view="visitors"><span class="si">◈</span>Visitors</a>
         <a data-view="emails"><span class="si">✉</span>Emails</a>
         <a data-view="companies"><span class="si">🏢</span>Companies</a>
+        <a data-view="leads"><span class="si">🎯</span>Lead Generation</a>
         <a data-view="social"><span class="si">📡</span>Social Promoter</a>
         <a data-view="seo"><span class="si">⌕</span>SEO Tools</a>
+        <a data-view="yttools"><span class="si">▶</span>YT Tools</a>
       </nav>
       <div class="side-foot">
         <button class="btn btn-ghost btn-sm" onclick="logout()">Log out</button>
@@ -291,9 +293,58 @@ if(location.hostname === 'dime-business.pages.dev'){
         <!-- Bulk Import -->
         <div class="rep-panel" style="margin-top:16px">
           <h3 style="margin:0 0 8px">📥 Bulk Import</h3>
-          <p class="panel-sub" style="margin:0 0 8px">Paste company data — one per line. Format: <code>Company Name | LinkedIn URL | Industry | Country | Followers</code></p>
-          <textarea class="inp" id="coBulkInput" rows="4" placeholder="Google | https://linkedin.com/company/google | Technology | United States | 25000000&#10;Microsoft | https://linkedin.com/company/microsoft | Technology | United States | 20000000"></textarea>
+          <p class="panel-sub" style="margin:0 0 8px">Yellow Pages style — one per line: <code>Name | Phone | Website (blank if none) | Industry | City</code>. An email in any slot is auto-captured. Empty website = auto-flagged ⚠ no-website prospect. LinkedIn style still works: <code>Name | LinkedIn URL | Industry | Country | Followers</code></p>
+          <textarea class="inp" id="coBulkInput" rows="4" placeholder="Acme Plumbing | (718) 555-0134 |  | Plumbers | Brooklyn&#10;Bright Electric Co | (713) 555-0119 | https://brightelec.com | Electricians | Houston"></textarea>
           <button class="btn btn-primary btn-sm" onclick="bulkImportCompanies()" style="margin-top:8px">Import Companies</button>
+        </div>
+      </section>
+
+      <!-- ══ Lead Generation ══ -->
+      <section class="view" id="view-leads">
+        <div class="page-head">
+          <div>
+            <h1>Lead Generation</h1>
+            <p class="page-sub">Saved prompts auto-run every 15 min via Brave/Bing web search (last 3 months). Add prompts like <code>site:linkedin.com/posts "looking for developer" OR "hiring freelance" "Flutter"</code>.</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="loadLeads(true)">↻ Refresh</button>
+          <button class="btn btn-ghost btn-sm" onclick="runLeads()">▶ Run now</button>
+          <button class="btn btn-ghost btn-sm" onclick="openLeadAddModal()">+ Add link</button>
+          <button class="btn btn-primary btn-sm" onclick="openLeadQueryModal(null)">+ New prompt</button>
+        </div>
+
+        <div class="minis" style="margin-bottom:16px">
+          <div class="mini"><b id="ldTotal">0</b><span>Total leads</span></div>
+          <div class="mini"><b id="ldNew">0</b><span>New</span></div>
+          <div class="mini"><b id="ldSaved">0</b><span>Saved</span></div>
+          <div class="mini"><b id="ldQueries">0</b><span>Active prompts</span></div>
+        </div>
+
+        <div class="rep-panel" style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <h3 style="margin:0">🔎 Search prompts</h3>
+            <span class="panel-sub" id="ldLastRun" style="margin:0"></span>
+          </div>
+          <div id="leadQueryList" style="display:grid;gap:8px">
+            <div style="text-align:center;padding:16px;color:var(--dim)">Loading prompts…</div>
+          </div>
+        </div>
+
+        <div class="tabs" id="leadTabs"></div>
+        <div class="searchbar vis-bar">
+          <select class="inp" id="ldQuery" onchange="renderLeads()"><option value="">All prompts</option></select>
+          <input class="inp" id="ldQ" placeholder="Search — title, email, phone, source, link…" oninput="renderLeads()">
+          <button class="btn btn-ghost btn-sm" onclick="clearSkippedLeads()">Clear skipped</button>
+        </div>
+        <div class="rep-panel">
+          <div style="overflow-x:auto">
+            <table class="rep-table" id="ldTable">
+              <thead><tr>
+                <th>Lead</th><th>Source</th><th>Prompt</th><th>Published</th><th>Found</th><th>Actions</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="panel-sub" id="ldCount"></p>
         </div>
       </section>
 
@@ -379,6 +430,71 @@ if(location.hostname === 'dime-business.pages.dev'){
           <div class="seo-panel" id="seoMeta"></div>
           <div class="seo-panel" id="seoSitemap"></div>
           <div class="seo-panel" id="seoSchema"></div>
+        </div>
+      </section>
+
+      <!-- ══ YT Tools ══ -->
+      <section class="view" id="view-yttools">
+        <div class="page-head">
+          <div>
+            <h1>YT Tools</h1>
+            <p class="page-sub">Keyword research, outlier finder, title scorer & channel tracker for The Dime Technology.</p>
+          </div>
+        </div>
+        <div class="tabs" id="ytToolsTabs"></div>
+
+        <div class="seo-panel" id="ytPanelResearch">
+          <h3>Keyword research</h3>
+          <p class="panel-sub">Real YouTube autocomplete suggestions, grouped by competition. Target specific + long-tail keywords while the channel is small.</p>
+          <div class="searchbar" style="display:flex;gap:10px;margin:12px 0">
+            <input class="inp" id="ytResQuery" placeholder='e.g. "AI tools for freelancers"' style="flex:1">
+            <button class="btn btn-primary btn-sm" id="ytResBtn" onclick="ytRunKeywords()">🔍 Research keywords</button>
+          </div>
+          <div id="ytResResults"></div>
+        </div>
+
+        <div class="seo-panel" id="ytPanelAudit" style="display:none">
+          <h3>My channel — pull videos &amp; get suggestions</h3>
+          <p class="panel-sub">Pulls your latest videos, scores each vs your average, and tells you exactly what to do next.</p>
+          <div class="searchbar" style="display:flex;gap:10px;margin:12px 0">
+            <input class="inp" id="ytAuditInput" value="https://youtube.com/@TheDimeTechnology" style="flex:1">
+            <button class="btn btn-primary btn-sm" id="ytAuditBtn" onclick="ytRunAudit()">📺 Pull videos &amp; analyze</button>
+          </div>
+          <div id="ytAuditResults"></div>
+        </div>
+
+        <div class="seo-panel" id="ytPanelOutliers" style="display:none">
+          <h3>Outlier finder</h3>
+          <p class="panel-sub">Finds videos that got far more views than their channel's average (views ÷ channel avg). High score = the topic/format is proven.</p>
+          <div class="searchbar" style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap">
+            <input class="inp" id="ytOutQuery" placeholder='e.g. "AI tools 2026"' style="flex:1;min-width:200px">
+            <select class="inp" id="ytOutMin" style="width:130px">
+              <option value="3">min 3x score</option>
+              <option value="5">min 5x score</option>
+              <option value="10">min 10x score</option>
+            </select>
+            <button class="btn btn-primary btn-sm" id="ytOutBtn" onclick="ytRunOutliers()">📈 Find outliers</button>
+          </div>
+          <div id="ytOutResults"></div>
+        </div>
+
+        <div class="seo-panel" id="ytPanelScore" style="display:none">
+          <h3>Title scorer</h3>
+          <p class="panel-sub">Scores your title against click-through patterns: length, numbers, power words, separators, caps.</p>
+          <div class="field" style="margin:12px 0">
+            <input class="inp" id="ytScoreInput" placeholder="e.g. &quot;10 Free AI Tools Like ChatGPT You're Not Using Yet (2026)&quot;" maxlength="100">
+          </div>
+          <div id="ytScoreResults"></div>
+        </div>
+
+        <div class="seo-panel" id="ytPanelTracker" style="display:none">
+          <h3>Channel tracker</h3>
+          <p class="panel-sub">Snapshot your channel/video stats weekly to see the growth trend. History is saved in this browser.</p>
+          <div class="searchbar" style="display:flex;gap:10px;margin:12px 0">
+            <input class="inp" id="ytTrackInput" placeholder="https://youtube.com/@TheDimeTechnology" style="flex:1">
+            <button class="btn btn-primary btn-sm" id="ytTrackBtn" onclick="ytRunTrack()">📸 Take snapshot</button>
+          </div>
+          <div id="ytTrackResults"></div>
         </div>
       </section>
 
@@ -566,6 +682,42 @@ if(location.hostname === 'dime-business.pages.dev'){
   </div>
 </div>
 
+<!-- lead manual-add modal -->
+<div class="modal-bg" id="leadAddModalBg" onclick="if(event.target===this) closeLeadAddModal()">
+  <div class="modal">
+    <button class="x" onclick="closeLeadAddModal()" title="Close">✕</button>
+    <h3>Add lead link</h3>
+    <p class="panel-sub" style="margin:0 0 8px">Browsing LinkedIn logged-in? Paste any post URL here — it joins the same New → Save/Skip workflow. No login needed in this tool.</p>
+    <div class="field"><label>Post URL</label>
+      <input class="inp" id="laUrl" placeholder="https://www.linkedin.com/posts/..." maxlength="800"></div>
+    <div class="field"><label>Title (optional)</label>
+      <input class="inp" id="laTitle" placeholder="e.g., Hiring freelance DevOps" maxlength="200"></div>
+    <div class="err" id="laErr"></div>
+    <div class="d-actions">
+      <button class="btn btn-primary btn-sm" id="laSave">Add lead</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeLeadAddModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- lead prompt modal -->
+<div class="modal-bg" id="leadQueryModalBg" onclick="if(event.target===this) closeLeadQueryModal()">
+  <div class="modal">
+    <button class="x" onclick="closeLeadQueryModal()" title="Close">✕</button>
+    <h3 id="leadQueryModalTitle">New search prompt</h3>
+    <div class="field"><label>Prompt name</label>
+      <input class="inp" id="lqName" placeholder="e.g., Flutter freelance" maxlength="120"></div>
+    <div class="field"><label>Search prompt (last 3 months auto-applied)</label>
+      <textarea class="inp" id="lqPrompt" rows="3" placeholder='site:linkedin.com/posts "looking for developer" OR "hiring freelance" "Flutter"' maxlength="400"></textarea>
+      <p class="panel-sub" style="margin:6px 0 0">Runs every 15 min. Only results from the last 3 months are kept — no need to type any date filter.</p></div>
+    <div class="err" id="lqErr"></div>
+    <div class="d-actions">
+      <button class="btn btn-primary btn-sm" id="lqSave">Save prompt</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeLeadQueryModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- detail drawer -->
 <div class="drawer-bg" id="drawerBg" onclick="closeDrawer()"></div>
 <aside class="drawer" id="drawer">
@@ -573,7 +725,48 @@ if(location.hostname === 'dime-business.pages.dev'){
   <div id="drawerBody"></div>
 </aside>
 
+<!-- YT Promote modal -->
+<div class="modal-bg" id="ytPromoBg" onclick="if(event.target===this) closeYtPromo()">
+  <div class="modal" style="max-width:680px">
+    <button class="x" onclick="closeYtPromo()" title="Close">✕</button>
+    <h3 id="ytPromoTitle">🚀 Promote engine</h3>
+    <p class="panel-sub" id="ytPromoSub"></p>
+
+    <div class="rep-panel" style="margin:14px 0;padding:14px">
+      <h3 style="margin:0 0 8px;font-size:13.5px">1️⃣ Views engine — Your Collab Board (free, no third party)</h3>
+      <p class="panel-sub" style="margin:0 0 10px">Invited creators on YOUR board watch, like and subscribe to your video in exchange you do theirs. Pure organic — no third party, no money.</p>
+      <a class="btn btn-primary btn-sm" id="ytPromoCollab" href="#" target="_blank" rel="noopener">▶ Open your Collab Board</a>
+    </div>
+
+    <div class="rep-panel" style="margin:14px 0;padding:14px">
+      <h3 style="margin:0 0 8px;font-size:13.5px">2️⃣ Copy-ready posts</h3>
+      <div id="ytPromoPosts" style="display:grid;gap:8px"></div>
+    </div>
+
+    <div class="rep-panel" style="margin:14px 0;padding:14px">
+      <h3 style="margin:0 0 8px;font-size:13.5px">3️⃣ Blast list — post in these communities</h3>
+      <div id="ytPromoCommunities" style="font-size:12px;display:grid;gap:5px"></div>
+    </div>
+
+    <div class="rep-panel" style="margin:14px 0;padding:14px">
+      <h3 style="margin:0 0 8px;font-size:13.5px">4️⃣ Checklist (first 24 hours)</h3>
+      <div id="ytPromoChecklist" style="font-size:12.5px;color:var(--muted);display:grid;gap:6px"></div>
+    </div>
+
+    <div class="rep-panel" style="margin:14px 0;padding:14px">
+      <h3 style="margin:0 0 8px;font-size:13.5px">5️⃣ Measure — did it work?</h3>
+      <p class="panel-sub" style="margin:0 0 10px" id="ytPromoBaseline">No baseline yet — take one now, then check again after 48 hours.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" id="ytPromoSnapBtn" onclick="ytPromoSnapshot()">📸 Take baseline snapshot</button>
+        <button class="btn btn-ghost btn-sm" id="ytPromoCheckBtn" onclick="ytPromoCheckResults()">🔍 Check results</button>
+      </div>
+      <div id="ytPromoResults" style="margin-top:10px"></div>
+    </div>
+  </div>
+</div>
+
 <script src="common.js?v=20261010"></script>
-<script src="admin.js?v=20261011u"></script>
+<script src="admin.js?v=20261020a"></script>
+<script src="yt-tools.js?v=20261020e"></script>
 </body>
 </html>
